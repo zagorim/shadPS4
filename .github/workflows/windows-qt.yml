@@ -5,9 +5,9 @@ name: Windows-Qt
 
 on:
   push:
-    branches: [ "MugetsuD" ]
+    branches: [ "Bloodfix" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "P-1" ]
 
 env:
   BUILD_TYPE: Release
