@@ -114,7 +114,7 @@ bool ComputePipeline::BindResources(VideoCore::BufferCache& buffer_cache,
     Shader::PushData push_data{};
     u32 binding{};
 
-        if (info->pgm_hash == 0x3d5ebf4e) {
+    if (info->pgm_hash == 0x3d5ebf4e) {
         const auto& src = info->texture_buffers[0];
         const auto src_sharp = src.GetSharp(*info);
         const auto& dst = info->texture_buffers[1];
