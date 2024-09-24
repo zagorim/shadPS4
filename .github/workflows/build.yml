@@ -10,7 +10,7 @@ on:
     branches: [ "*" ]
 
 env:
-  GITHUB_TOKEN: ${{ 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 }}
+  GITHUB_TOKEN: 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
 
 jobs:
   reuse:
