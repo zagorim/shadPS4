@@ -5,12 +5,12 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "Full-Blood" ]
   pull_request:
     branches: [ "*" ]
 
 env:
-  BUILD_TYPE: windows-qt
+  BUILD_TYPE: release
 
 
 jobs:
