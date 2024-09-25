@@ -41,9 +41,9 @@ void CheckUpdate::CheckForUpdates(const bool showMessage) {
     QUrl url;
 
     if (updateChannel == "unstable") {
-        url = QUrl("https://api.github.com/repos/shadps4-emu/shadPS4/releases");
+        url = QUrl("https://api.github.com/repos/diegolix29/shadPS4/releases");
     } else if (updateChannel == "stable") {
-        url = QUrl("https://api.github.com/repos/shadps4-emu/shadPS4/releases/latest");
+        url = QUrl("https://api.github.com/repos/diegolix29/shadPS4/releases/latest");
     } else {
         QMessageBox::warning(
             this, tr("Error"),
@@ -254,7 +254,7 @@ void CheckUpdate::requestChangelog(const QString& currentRev, const QString& lat
                                    const QString& downloadUrl, const QString& latestDate,
                                    const QString& currentDate) {
     QString compareUrlString =
-        QString("https://api.github.com/repos/shadps4-emu/shadPS4/compare/%1...%2")
+        QString("https://api.github.com/repos/diegolix29/shadPS4/compare/%1...%2")
             .arg(currentRev)
             .arg(latestRev);
 
