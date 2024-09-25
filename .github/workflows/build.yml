@@ -5,9 +5,9 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "Full-Blood" ]
+    branches: [ "*" ]
   pull_request:
-    branches: [ "Full-Blood" ]
+    branches: [ "*" ]
 
 env:
   BUILD_TYPE: release
