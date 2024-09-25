@@ -7,7 +7,7 @@ on:
   push:
     branches: [ "Full-Blood" ]
   pull_request:
-    branches: [ "*" ]
+    branches: [ "Full-Blood" ]
 
 env:
   BUILD_TYPE: release
@@ -78,7 +78,7 @@ jobs:
       env:
           cache-name: ${{ runner.os }}-sdl-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         key: ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
 
     - name: Setup VS Environment
@@ -131,7 +131,7 @@ jobs:
       env:
           cache-name: ${{ runner.os }}-qt-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         key: ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
 
     - name: Setup VS Environment
@@ -192,7 +192,7 @@ jobs:
       env:
           cache-name: ${{runner.os}}-sdl-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         create-symlink: true
         key: ${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
         variant: sccache
@@ -255,7 +255,7 @@ jobs:
       env:
           cache-name: ${{runner.os}}-qt-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         create-symlink: true
         key: ${{env.cache-name}}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
         variant: sccache
@@ -304,7 +304,7 @@ jobs:
       env:
           cache-name: ${{ runner.os }}-sdl-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         key: ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
 
     - name: Configure CMake
@@ -360,7 +360,7 @@ jobs:
       env:
           cache-name: ${{ runner.os }}-qt-cache-cmake-build
       with:
-        append-timestamp: false
+        append-timestamp: true
         key: ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
 
     - name: Configure CMake
