@@ -136,7 +136,10 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
         .subgroup_size = instance.SubgroupSize(),
         .support_explicit_workgroup_layout = true,
     };
-    pipeline_cache = instance.GetDevice().createPipelineCacheUnique({});
+    auto [cache_result, cache] = instance.GetDevice().createPipelineCacheUnique({});
+    ASSERT_MSG(cache_result == vk::Result::eSuccess, "Failed to create pipeline cache: {}",
+               vk::to_string(cache_result));
+    pipeline_cache = std::move(cache);
 }
 
 PipelineCache::~PipelineCache() = default;
@@ -186,14 +189,14 @@ const ComputePipeline* PipelineCache::GetComputePipeline() {
 }
 
 bool ShouldSkipShader(u64 shader_hash, const char* shader_type) {
-    static constexpr std::array<u64, 4> skip_hashes = {0xc8854a11,
-        0xaa9d023d, 0x17a64a21, 0x94ec4dfb}; 
-
-   if (std::ranges::contains(skip_hashes, shader_hash)) {
+    static constexpr std::array<u64, 13> skip_hashes = {
+        0x4899010a, 0xc8854a11, 0xaa9d023d, 0x17a64a21, 0x94ec4dfb, 0xbddb8fc7, 0x733dae6f,
+        0x9a987165, 0x70ffb249, 0x34e9da69, 0xbfed1ef4, 0x6faab5f9, 0x125a83c1};
+    if (std::ranges::contains(skip_hashes, shader_hash)) {
         LOG_WARNING(Render_Vulkan, "Skipped {} shader hash {:#x}.", shader_type, shader_hash);
         return true;
-   } 
-   return false;
+    }
+    return false;
 }
 
 bool PipelineCache::RefreshGraphicsKey() {
@@ -266,7 +269,7 @@ bool PipelineCache::RefreshGraphicsKey() {
         ++remapped_cb;
     }
 
-    u32 binding{};
+    Shader::Backend::Bindings binding{};
     for (u32 i = 0; i < MaxShaderStages; i++) {
         if (!regs.stage_enable.IsStageEnabled(i)) {
             key.stage_hashes[i] = 0;
@@ -334,7 +337,7 @@ bool PipelineCache::RefreshGraphicsKey() {
 }
 
 bool PipelineCache::RefreshComputeKey() {
-    u32 binding{};
+    Shader::Backend::Bindings binding{};
     const auto* cs_pgm = &liverpool->regs.cs_program;
     const auto cs_params = Liverpool::GetParams(*cs_pgm);
     if (ShouldSkipShader(cs_params.hash, "compute")) {
@@ -348,7 +351,7 @@ bool PipelineCache::RefreshComputeKey() {
 vk::ShaderModule PipelineCache::CompileModule(Shader::Info& info,
                                               const Shader::RuntimeInfo& runtime_info,
                                               std::span<const u32> code, size_t perm_idx,
-                                              u32& binding) {
+                                              Shader::Backend::Bindings& binding) {
     LOG_INFO(Render_Vulkan, "Compiling {} shader {:#x} {}", info.stage, info.pgm_hash,
              perm_idx != 0 ? "(permutation)" : "");
     if (Config::dumpShaders()) {
@@ -368,14 +371,14 @@ vk::ShaderModule PipelineCache::CompileModule(Shader::Info& info,
 }
 
 std::tuple<const Shader::Info*, vk::ShaderModule, u64> PipelineCache::GetProgram(
-    Shader::Stage stage, Shader::ShaderParams params, u32& binding) {
+    Shader::Stage stage, Shader::ShaderParams params, Shader::Backend::Bindings& binding) {
     const auto runtime_info = BuildRuntimeInfo(stage);
     auto [it_pgm, new_program] = program_cache.try_emplace(params.hash);
     if (new_program) {
         Program* program = program_pool.Create(stage, params);
-        u32 start_binding = binding;
+        auto start = binding;
         const auto module = CompileModule(program->info, runtime_info, params.code, 0, binding);
-        const auto spec = Shader::StageSpecialization(program->info, runtime_info, start_binding);
+        const auto spec = Shader::StageSpecialization(program->info, runtime_info, start);
         program->AddPermut(module, std::move(spec));
         it_pgm.value() = program;
         return std::make_tuple(&program->info, module, HashCombine(params.hash, 0));
@@ -393,7 +396,7 @@ std::tuple<const Shader::Info*, vk::ShaderModule, u64> PipelineCache::GetProgram
         module = CompileModule(new_info, runtime_info, params.code, perm_idx, binding);
         program->AddPermut(module, std::move(spec));
     } else {
-        binding += info.NumBindings();
+        info.AddBindings(binding);
         module = it->module;
         perm_idx = std::distance(program->modules.begin(), it);
     }
