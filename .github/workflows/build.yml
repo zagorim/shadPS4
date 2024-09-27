@@ -5,7 +5,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "Full-Blood" ]
   pull_request:
     branches: [ "*" ]
 
@@ -416,17 +416,17 @@ jobs:
       id: create_release
       uses: ncipollo/release-action@v1
       with:
-        token: ${{ secrets.MUGETSU_TOKEN_REPO }}
+        token: ${{ secrets.SHADPS4_TOKEN_REPO }}
         name: "Pre-release-shadPS4-${{ needs.get-info.outputs.date }}-${{ needs.get-info.outputs.shorthash }}"
         tag: "Pre-release-shadPS4-${{ needs.get-info.outputs.date }}-${{ needs.get-info.outputs.shorthash }}"
         draft: false
         prerelease: true
-        body: "Full Changelog: [${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }}](https://github.com/shadps4-emu/shadPS4/compare/${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }})"
+        body: "Full Changelog: [${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }}](https://github.com/diegolix29/shadPS4/compare/${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }})"
         artifacts: ./artifacts/*.zip
     
     - name: Get current pre-release information
       env:
-        GITHUB_TOKEN: ${{ secrets.MUGETSU_TOKEN_REPO }}
+        GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
       run: |
         api_url="https://api.github.com/repos/${{ github.repository }}/releases"
         
@@ -444,7 +444,7 @@ jobs:
     
     - name: Delete old pre-releases and tags
       env:
-        GITHUB_TOKEN: ${{ secrets.MUGETSU_TOKEN_REPO }}
+        GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
       run: |
         api_url="https://api.github.com/repos/${{ github.repository }}/releases"
         
