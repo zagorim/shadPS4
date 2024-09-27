@@ -5,9 +5,9 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "Full-Blood-N" ]
   pull_request:
-    branches: [ "*" ]
+    branches: [ "Full-Blood-N" ]
 
 env:
   BUILD_TYPE: Release
@@ -405,7 +405,7 @@ jobs:
     - name: Get latest release information
       id: get_latest_release
       env:
-        GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
+        GITHUB_TOKEN: ${{ secrets.MUGETSU_TOKEN_REPO }}
       run: |
         api_url="https://api.github.com/repos/${{ github.repository }}"
         latest_release_info=$(curl -H "Authorization: token $GITHUB_TOKEN" "$api_url/releases/latest")
@@ -415,7 +415,7 @@ jobs:
       id: create_release
       uses: ncipollo/release-action@v1
       with:
-        token: ${{ secrets.SHADPS4_TOKEN_REPO }}
+        token: ${{ secrets.MUGETSU_TOKEN_REPO }}
         name: "Pre-release-shadPS4-${{ needs.get-info.outputs.date }}-${{ needs.get-info.outputs.shorthash }}"
         tag: "Pre-release-shadPS4-${{ needs.get-info.outputs.date }}-${{ needs.get-info.outputs.shorthash }}"
         draft: false
@@ -425,7 +425,7 @@ jobs:
     
     - name: Get current pre-release information
       env:
-        GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
+        GITHUB_TOKEN: ${{ secrets.MUGETSU_TOKEN_REPO }}
       run: |
         api_url="https://api.github.com/repos/${{ github.repository }}/releases"
         
