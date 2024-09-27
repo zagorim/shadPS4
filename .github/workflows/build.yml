@@ -380,7 +380,7 @@ jobs:
         path: Shadps4-qt.AppImage
 
   pre-release:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/Full-Blood-N' && github.event_name == 'push'
     needs: [get-info, windows-sdl, windows-qt, macos-sdl, macos-qt, linux-sdl, linux-qt]
     runs-on: ubuntu-latest
     steps:
@@ -413,7 +413,7 @@ jobs:
 
     - name: Delete old pre-releases and tags
       env:
-        GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
+        GITHUB_TOKEN: ${{ secrets.MUGETSU_TOKEN_REPO }}
       run: |
         current_date="${{ needs.get-info.outputs.date }}"
         api_url="https://api.github.com/repos/${{ github.repository }}/releases"
