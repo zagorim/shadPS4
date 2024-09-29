@@ -9,7 +9,7 @@ on:
   pull_request:
     branches: [ "*" ]
 
-env:2c
+env:
   BUILD_TYPE: Release
 
 jobs:
