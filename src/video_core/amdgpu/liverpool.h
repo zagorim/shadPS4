@@ -253,14 +253,13 @@ struct Liverpool {
         }
     };
 
-        struct ModeControl {
+    struct ModeControl {
         s32 msaa_enable : 1;
         s32 vport_scissor_enable : 1;
         s32 line_stripple_enable : 1;
         s32 send_unlit_stiles_to_pkr : 1;
     };
 
-    
     enum class ZOrder : u32 {
         LateZ = 0,
         EarlyZLateZ = 1,
