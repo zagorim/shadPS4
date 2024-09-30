@@ -415,7 +415,6 @@ void Rasterizer::UpdateViewportScissorState() {
             .offset = {vp_scsr.top_left_x, vp_scsr.top_left_y},
             .extent = {vp_scsr.GetWidth(), vp_scsr.GetHeight()},
         });
-
     }
 
     const auto cmdbuf = scheduler.CommandBuffer();
