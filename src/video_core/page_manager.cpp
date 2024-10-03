@@ -220,4 +220,3 @@ void PageManager::UpdatePagesCachedCount(VAddr addr, u64 size, s32 delta) {
 }
 
 } // namespace VideoCore
-
