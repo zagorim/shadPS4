@@ -5,7 +5,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "Pro-F" ]
   pull_request:
     branches: [ "*" ]
 
@@ -386,7 +386,7 @@ jobs:
         path: Shadps4-qt.AppImage
 
   pre-release:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/Pro-F' && github.event_name == 'push'
     needs: [get-info, windows-sdl, windows-qt, macos-sdl, macos-qt, linux-sdl, linux-qt]
     runs-on: ubuntu-latest
     steps:
@@ -424,7 +424,7 @@ jobs:
         tag: "Pre-release-shadPS4-${{ needs.get-info.outputs.date }}-${{ needs.get-info.outputs.shorthash }}"
         draft: false
         prerelease: true
-        body: "Full Changelog: [${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }}](https://github.com/shadps4-emu/shadPS4/compare/${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }})"
+        body: "Full Changelog: [${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }}](https://github.com/diegolix29/shadPS4/compare/${{ env.last_release_tag }}...${{ needs.get-info.outputs.shorthash }})"
         artifacts: ./artifacts/*.zip
     
     - name: Get current pre-release information
