@@ -230,7 +230,7 @@ bool PipelineCache::RefreshGraphicsKey() {
     auto& key = graphics_key;
 
     key.depth_stencil = regs.depth_control;
-    key.depth_stencil.depth_write_enable.Assign(regs.depth_control.depth_write_enable.Value() &&
+    key.depth_stencil.depth_write_enable.Assign(regs.depth_control.depth_write_enable.Value() &
                                                 !regs.depth_render_control.depth_clear_enable);
     key.depth_bias_enable = regs.polygon_control.NeedsBias();
 
