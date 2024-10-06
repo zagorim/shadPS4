@@ -138,9 +138,9 @@ int PS4_SYSV_ABI scePadGetExtControllerInformation(s32 handle,
 
     pInfo->padType1 = 0;
     pInfo->padType2 = 0;
-    pInfo->capability = 0
+    pInfo->capability = 0;
 
-        auto res = scePadGetControllerInformation(handle, &pInfo->base);
+    auto res = scePadGetControllerInformation(handle, &pInfo->base);
     return res;
 }
 
