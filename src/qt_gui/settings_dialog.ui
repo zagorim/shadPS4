@@ -478,9 +478,11 @@
                </widget>
               </widget>
              </widget>
-           </item>
+            </item>
+           </layout>
+          </item>
          </layout>
-        </item>
+        </item>	
        </layout>
       </widget>
       <widget class="QWidget" name="grphicsTab">
