@@ -155,7 +155,7 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
                 BackgroundMusicPlayer::getInstance().stopMusic();
             }
         });
-      
+
         connect(ui->BGMVolumeSlider, &QSlider::valueChanged, this, [](float val) {
             Config::setBGMvolume(val);
             BackgroundMusicPlayer::getInstance().setVolume(val);
