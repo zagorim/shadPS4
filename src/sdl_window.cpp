@@ -330,8 +330,20 @@ void WindowSDL::onGamepadEvent(const SDL_Event* event) {
     case SDL_EVENT_GAMEPAD_BUTTON_UP:
         button = sdlGamepadToOrbisButton(event->gbutton.button);
         if (button != 0) {
-            controller->CheckButton(0, button, event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
-        }
+            if (event->gbutton.button == SDL_GAMEPAD_BUTTON_BACK) {
+                std::string backButtonBehavior = Config::getBackButtonBehavior();
+                if (backButtonBehavior != "none") {
+                    float x = backButtonBehavior == "left"
+                                  ? 0.25f
+                                  : (backButtonBehavior == "right" ? 0.75f : 0.5f);
+                    // trigger a touchpad event so that the touchpad emulation for back button works
+                    controller->SetTouchpadState(0, true, x, 0.5f);
+                    controller->CheckButton(0, button,
+                                            event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+                }
+            } else {
+                controller->CheckButton(0, button, event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+            }
         if (SDL_GetCursor() != NULL) {
             SDL_HideCursor();
         }
