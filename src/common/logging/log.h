@@ -34,7 +34,8 @@ void FmtLogMessage(Class log_class, Level log_level, const char* filename, unsig
 
 } // namespace Common::Log
 
-// Define the fmt lib macros
+#if (0)
+  // Define the fmt lib macros
 #define LOG_GENERIC(log_class, log_level, ...)                                                     \
     Common::Log::FmtLogMessage(log_class, log_level, Common::Log::TrimSourcePath(__FILE__),        \
                                __LINE__, __func__, __VA_ARGS__)
@@ -68,3 +69,19 @@ void FmtLogMessage(Class log_class, Level log_level, const char* filename, unsig
     Common::Log::FmtLogMessage(Common::Log::Class::log_class, Common::Log::Level::Critical,        \
                                Common::Log::TrimSourcePath(__FILE__), __LINE__, __func__,          \
                                __VA_ARGS__)
+
+  // Define the fmt lib macros
+#define LOG_GENERIC(log_class, log_level, ...)                                                     \
+    Common::Log::FmtLogMessage(log_class, log_level, Common::Log::TrimSourcePath(__FILE__),        \
+                               __LINE__, __func__, __VA_ARGS__)
+#else
+
+#define LOG_GENERIC(log_class, log_level, ...) (void(0))
+#define LOG_TRACE(log_class, fmt, ...) (void(0))
+#define LOG_DEBUG(log_class, ...) (void(0))
+#define LOG_INFO(log_class, ...) (void(0))
+#define LOG_WARNING(log_class, ...) (void(0))
+#define LOG_ERROR(log_class, ...) (void(0))
+#define LOG_CRITICAL(log_class, ...) (void(0))
+
+#endif
