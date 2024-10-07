@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 	<!-- SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
@@ -539,6 +539,16 @@
 			<source>Volume</source>
 			<translation>Volume</translation>
 		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="455"/>
+			<source>Controller Settings</source>
+			<translation>Controller Settings</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="467"/>
+			<source>Back Button Behavior</source>
+			<translation>Back Button Behavior</translation>
+		</message>
 	</context>
 	<context>
 		<name>MainWindow</name>
@@ -1027,6 +1037,31 @@
 			<location filename="../settings_dialog.cpp" line="306"/>
 			<source>GUIgroupBox</source>
 			<translation>Play Title Music:\nIf a game supports it, enable playing special music when selecting the game in the GUI.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="330"/>
+			<source>backButtonBehaviorGroupBox</source>
+			<translation>Back Button Behavior:\nAllows setting which part of the touchpad the back button will emulate a touch on.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="101"/>
+			<source>Touchpad Left</source>
+			<translation>Touchpad Left</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="102"/>
+			<source>Touchpad Right</source>
+			<translation>Touchpad Right</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="103"/>
+			<source>Touchpad Center</source>
+			<translation>Touchpad Center</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="104"/>
+			<source>None</source>
+			<translation>None</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="312"/>
