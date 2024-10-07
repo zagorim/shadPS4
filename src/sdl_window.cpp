@@ -361,7 +361,7 @@ void WindowSDL::onGamepadEvent(const SDL_Event* event) {
             if (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
                 event->gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
                 controller->Axis(0, axis, Input::GetAxis(0, 0x8000, event->gaxis.value));
-              
+
             } else {
                 controller->Axis(0, axis, Input::GetAxis(-0x8000, 0x8000, event->gaxis.value));
             }
@@ -372,7 +372,7 @@ void WindowSDL::onGamepadEvent(const SDL_Event* event) {
 
 int WindowSDL::sdlGamepadToOrbisButton(u8 button) {
     using Libraries::Pad::OrbisPadButtonDataOffset;
-  
+
     switch (button) {
     case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
         return OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_DOWN;
