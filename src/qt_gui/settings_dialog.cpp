@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
+
 #include <QCompleter>
 #include <QDirIterator>
 #include <QHoverEvent>
+
 #include <common/version.h>
 #include "check_update.h"
 #include "common/logging/backend.h"
@@ -10,6 +12,7 @@
 #include "main_window.h"
 #include "settings_dialog.h"
 #include "ui_settings_dialog.h"
+
 QStringList languageNames = {"Arabic",
                              "Czech",
                              "Danish",
@@ -40,28 +43,38 @@ QStringList languageNames = {"Arabic",
                              "Traditional Chinese",
                              "Turkish",
                              "Vietnamese"};
+
 const QVector<int> languageIndexes = {21, 23, 14, 6,  18, 1,  12, 22, 2,  4, 25, 24, 29, 5,  0,
                                       9,  15, 16, 17, 7,  26, 8,  11, 20, 3, 13, 27, 10, 19, 28};
+
 SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidget* parent)
     : QDialog(parent), ui(new Ui::SettingsDialog) {
     ui->setupUi(this);
     ui->tabWidgetSettings->setUsesScrollButtons(false);
     const auto config_dir = Common::FS::GetUserPath(Common::FS::PathType::UserDir);
+
     ui->buttonBox->button(QDialogButtonBox::StandardButton::Close)->setFocus();
+
     // Add list of available GPUs
     ui->graphicsAdapterBox->addItem("Auto Select"); // -1, auto selection
     for (const auto& device : physical_devices) {
         ui->graphicsAdapterBox->addItem(device);
     }
+
     ui->consoleLanguageComboBox->addItems(languageNames);
+
     QCompleter* completer = new QCompleter(languageNames, this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     ui->consoleLanguageComboBox->setCompleter(completer);
+
     InitializeEmulatorLanguages();
     LoadValuesFromConfig();
+
     defaultTextEdit = tr("Point your mouse at an option to display its description.");
     ui->descriptionText->setText(defaultTextEdit);
+
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QWidget::close);
+
     connect(ui->buttonBox, &QDialogButtonBox::clicked, this,
             [this, config_dir](QAbstractButton* button) {
                 if (button == ui->buttonBox->button(QDialogButtonBox::Save)) {
@@ -79,6 +92,7 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
                     Common::Log::SetGlobalFilter(filter);
                 }
             });
+
     ui->buttonBox->button(QDialogButtonBox::Save)->setText(tr("Save"));
     ui->buttonBox->button(QDialogButtonBox::Apply)->setText(tr("Apply"));
     ui->buttonBox->button(QDialogButtonBox::RestoreDefaults)->setText(tr("Restore Defaults"));
@@ -100,6 +114,7 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
     {
         connect(ui->userNameLineEdit, &QLineEdit::textChanged, this,
                 [](const QString& text) { Config::setUserName(text.toStdString()); });
+
         connect(ui->consoleLanguageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [](int index) {
                     if (index >= 0 && index < languageIndexes.size()) {
@@ -107,24 +122,33 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
                         Config::setLanguage(languageCode);
                     }
                 });
+
         connect(ui->fullscreenCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setFullscreenMode(val); });
+
         connect(ui->showSplashCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setShowSplash(val); });
+
         connect(ui->ps4proCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setNeoMode(val); });
+
         connect(ui->logTypeComboBox, &QComboBox::currentTextChanged, this,
                 [](const QString& text) { Config::setLogType(text.toStdString()); });
+
         connect(ui->logFilterLineEdit, &QLineEdit::textChanged, this,
                 [](const QString& text) { Config::setLogFilter(text.toStdString()); });
+
         connect(ui->updateCheckBox, &QCheckBox::stateChanged, this,
                 [](int state) { Config::setAutoUpdate(state == Qt::Checked); });
+
         connect(ui->updateComboBox, &QComboBox::currentTextChanged, this,
                 [](const QString& channel) { Config::setUpdateChannel(channel.toStdString()); });
+
         connect(ui->checkUpdateButton, &QPushButton::clicked, this, []() {
             auto checkUpdate = new CheckUpdate(true);
             checkUpdate->exec();
         });
+
         connect(ui->playBGMCheckBox, &QCheckBox::stateChanged, this, [](int val) {
             Config::setPlayBGM(val);
             if (val == Qt::Unchecked) {
@@ -151,28 +175,38 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
         // when setting and add 1 when getting to select the correct gpu in Qt
         connect(ui->graphicsAdapterBox, &QComboBox::currentIndexChanged, this,
                 [](int index) { Config::setGpuId(index - 1); });
+
         connect(ui->widthSpinBox, &QSpinBox::valueChanged, this,
                 [](int val) { Config::setScreenWidth(val); });
+
         connect(ui->heightSpinBox, &QSpinBox::valueChanged, this,
                 [](int val) { Config::setScreenHeight(val); });
+
         connect(ui->vblankSpinBox, &QSpinBox::valueChanged, this,
                 [](int val) { Config::setVblankDiv(val); });
+
         connect(ui->dumpShadersCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setDumpShaders(val); });
+
         connect(ui->nullGpuCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setNullGpu(val); });
     }
+
     // DEBUG TAB
     {
         connect(ui->debugDump, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setDebugDump(val); });
+
         connect(ui->vkValidationCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setVkValidation(val); });
+
         connect(ui->vkSyncValidationCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setVkSyncValidation(val); });
+
         connect(ui->rdocCheckBox, &QCheckBox::stateChanged, this,
                 [](int val) { Config::setRdocEnabled(val); });
     }
+
     // Descriptions
     {
         // General
@@ -195,6 +229,7 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
         ui->heightDivider->installEventFilter(this);
         ui->dumpShadersCheckBox->installEventFilter(this);
         ui->nullGpuCheckBox->installEventFilter(this);
+
         // Debug
         ui->debugDump->installEventFilter(this);
         ui->vkValidationCheckBox->installEventFilter(this);
@@ -202,6 +237,7 @@ SettingsDialog::SettingsDialog(std::span<const QString> physical_devices, QWidge
         ui->rdocCheckBox->installEventFilter(this);
     }
 }
+
 void SettingsDialog::LoadValuesFromConfig() {
     ui->consoleLanguageComboBox->setCurrentIndex(
         std::distance(
@@ -223,10 +259,12 @@ void SettingsDialog::LoadValuesFromConfig() {
     ui->logTypeComboBox->setCurrentText(QString::fromStdString(Config::getLogType()));
     ui->logFilterLineEdit->setText(QString::fromStdString(Config::getLogFilter()));
     ui->userNameLineEdit->setText(QString::fromStdString(Config::getUserName()));
+
     ui->debugDump->setChecked(Config::debugDump());
     ui->vkValidationCheckBox->setChecked(Config::vkValidationEnabled());
     ui->vkSyncValidationCheckBox->setChecked(Config::vkValidationSyncEnabled());
     ui->rdocCheckBox->setChecked(Config::isRdocEnabled());
+
     ui->updateCheckBox->setChecked(Config::autoUpdate());
     std::string updateChannel = Config::getUpdateChannel();
     if (updateChannel != "Release" && updateChannel != "Nightly") {
@@ -245,6 +283,7 @@ void SettingsDialog::LoadValuesFromConfig() {
 
 void SettingsDialog::InitializeEmulatorLanguages() {
     QDirIterator it(QStringLiteral(":/translations"), QDirIterator::NoIteratorFlags);
+
     int idx = 0;
     while (it.hasNext()) {
         QString locale = it.next();
@@ -253,24 +292,33 @@ void SettingsDialog::InitializeEmulatorLanguages() {
         const QString lang = QLocale::languageToString(QLocale(locale).language());
         const QString country = QLocale::territoryToString(QLocale(locale).territory());
         ui->emulatorLanguageComboBox->addItem(QStringLiteral("%1 (%2)").arg(lang, country), locale);
+
         languages[locale.toStdString()] = idx;
         idx++;
     }
+
     connect(ui->emulatorLanguageComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this,
             &SettingsDialog::OnLanguageChanged);
 }
+
 void SettingsDialog::OnLanguageChanged(int index) {
     if (index == -1)
         return;
+
     ui->retranslateUi(this);
+
     emit LanguageChanged(ui->emulatorLanguageComboBox->itemData(index).toString().toStdString());
 }
+
 int SettingsDialog::exec() {
     return QDialog::exec();
 }
+
 SettingsDialog::~SettingsDialog() {}
+
 void SettingsDialog::updateNoteTextEdit(const QString& elementName) {
     QString text; // texts are only in .ts translation files for better formatting
+
     // General
     if (elementName == "consoleLanguageGroupBox") {
         text = tr("consoleLanguageGroupBox");
@@ -312,6 +360,7 @@ void SettingsDialog::updateNoteTextEdit(const QString& elementName) {
     } else if (elementName == "dumpPM4CheckBox") {
         text = tr("dumpPM4CheckBox");
     }
+
     // Debug
     if (elementName == "debugDump") {
         text = tr("debugDump");
@@ -322,18 +371,22 @@ void SettingsDialog::updateNoteTextEdit(const QString& elementName) {
     } else if (elementName == "rdocCheckBox") {
         text = tr("rdocCheckBox");
     }
+
     ui->descriptionText->setText(text.replace("\\n", "\n"));
 }
+
 bool SettingsDialog::override(QObject* obj, QEvent* event) {
     if (event->type() == QEvent::Enter || event->type() == QEvent::Leave) {
         if (qobject_cast<QWidget*>(obj)) {
             bool hovered = (event->type() == QEvent::Enter);
             QString elementName = obj->objectName();
+
             if (hovered) {
                 updateNoteTextEdit(elementName);
             } else {
                 ui->descriptionText->setText(defaultTextEdit);
             }
+
             // if the text exceeds the size of the box, it will increase the size
             int documentHeight = ui->descriptionText->document()->size().height();
             int visibleHeight = ui->descriptionText->viewport()->height();
