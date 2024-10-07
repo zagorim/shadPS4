@@ -70,7 +70,7 @@ void FmtLogMessage(Class log_class, Level log_level, const char* filename, unsig
                                Common::Log::TrimSourcePath(__FILE__), __LINE__, __func__,          \
                                __VA_ARGS__)
 
-  // Define the fmt lib macros
+// Define the fmt lib macros
 #define LOG_GENERIC(log_class, log_level, ...)                                                     \
     Common::Log::FmtLogMessage(log_class, log_level, Common::Log::TrimSourcePath(__FILE__),        \
                                __LINE__, __func__, __VA_ARGS__)
