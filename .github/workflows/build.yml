@@ -466,16 +466,16 @@ jobs:
           release_date=$(echo $release_date | tr -d '"')
           
           # Convert Pre-release_date para timestamp Unix
-          Pre-release_date_ts=$(date -d "$prerelease_date" +%s)
+          release_date_ts=$(date -d "$release_date" +%s)
                     
           # Compare timestamps and delete old pre-releases
           if [[ "$release_date_ts" -lt "$current_published_ts" ]]; then
-            echo "Deleting old Pre-release: $Pre-release_id from $Pre-release_date with tag: $Pre-release_tag"
-            # Delete the pre-release
-            curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" "$api_url/$Pre-release_id"
+            echo "Deleting old release: $release_id from $release_date with tag: $release_tag"
+            # Delete the release
+            curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" "$api_url/$release_id"
             # Delete the tag
-            curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$Pre-release_tag"
+            curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/git/refs/tags/$release_tag"
           else
-            echo "Skipping pre-release: $Pre-release_id (newer or same date)"
+            echo "Skipping release: $release_id (newer or same date)"
           fi
         done
