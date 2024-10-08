@@ -145,7 +145,6 @@ void WindowSDL::onKeyPress(const SDL_Event* event) {
     Input::Axis axis = Input::Axis::AxisMax;
     int axisvalue = 0;
     int ax = 0;
-    std::string backButtonBehavior = Config::getBackButtonBehavior();
     switch (event->key.key) {
     case SDLK_UP:
         button = OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_UP;
@@ -279,15 +278,7 @@ void WindowSDL::onKeyPress(const SDL_Event* event) {
         ax = Input::GetAxis(0, 0x80, axisvalue);
         break;
     case SDLK_SPACE:
-        if (backButtonBehavior != "none") {
-            float x = backButtonBehavior == "left" ? 0.25f
-                                                   : (backButtonBehavior == "right" ? 0.75f : 0.5f);
-            // trigger a touchpad event so that the touchpad emulation for back button works
-            controller->SetTouchpadState(0, true, x, 0.5f);
-            button = OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_TOUCH_PAD;
-        } else {
-            button = 0;
-        }
+        button = OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_TOUCH_PAD;
         break;
     case SDLK_F11:
         if (event->type == SDL_EVENT_KEY_DOWN) {
