@@ -441,7 +441,7 @@ jobs:
         # Export the current published_at to be available for the next step
         echo "CURRENT_PUBLISHED_AT=$current_release" >> $GITHUB_ENV
     
-    - name: Delete old pre-releases and tags
+    - name: Delete old pre-releases and tags 
       env:
         GITHUB_TOKEN: ${{ secrets.SHADPS4_TOKEN_REPO }}
       run: |
