@@ -62,7 +62,7 @@ typename std::map<KeyBinding, T>::const_iterator FindKeyAllowingOnlyNoModifiers(
 // Axis map: maps key+modifier to controller axis and axis value
 struct AxisMapping {
     Input::Axis axis;
-    int value; // Value to set for key press (+127 or -127 for movement)
+    int value; // Value to set for key press (+100 or -100 for movement)
 };
 
 // i strongly suggest you collapse these maps
@@ -88,10 +88,10 @@ std::map<std::string, AxisMapping> string_to_axis_map = {
     {"axis_left_x_minus", {Input::Axis::LeftX, -127}},
     {"axis_left_y_plus", {Input::Axis::LeftY, 127}},
     {"axis_left_y_minus", {Input::Axis::LeftY, -127}},
-    {"axis_right_x_plus", {Input::Axis::RightX, 127}},
-    {"axis_right_x_minus", {Input::Axis::RightX, -127}},
-    {"axis_right_y_plus", {Input::Axis::RightY, 127}},
-    {"axis_right_y_minus", {Input::Axis::RightY, -127}},
+    {"axis_right_x_plus", {Input::Axis::RightX, 100}},
+    {"axis_right_x_minus", {Input::Axis::RightX, -100}},
+    {"axis_right_y_plus", {Input::Axis::RightY, 100}},
+    {"axis_right_y_minus", {Input::Axis::RightY, -100}},
 };
 std::map<std::string, u32> string_to_keyboard_key_map = {
     {"a", SDLK_A},
@@ -166,6 +166,25 @@ std::map<std::string, u32> string_to_keyboard_key_map = {
     {"leftbutton", SDL_BUTTON_LEFT},
     {"rightbutton", SDL_BUTTON_RIGHT},
     {"middlebutton", SDL_BUTTON_MIDDLE},
+    {"kp0", SDLK_KP_0},
+    {"kp1", SDLK_KP_1},
+    {"kp2", SDLK_KP_2},
+    {"kp3", SDLK_KP_3},
+    {"kp4", SDLK_KP_4},
+    {"kp5", SDLK_KP_5},
+    {"kp6", SDLK_KP_6},
+    {"kp7", SDLK_KP_7},
+    {"kp8", SDLK_KP_8},
+    {"kp9", SDLK_KP_9},
+    {"kpperiod", SDLK_KP_PERIOD},
+    {"kpdivide", SDLK_KP_DIVIDE},
+    {"kpmultiply", SDLK_KP_MULTIPLY},
+    {"kpminus", SDLK_KP_MINUS},
+    {"kpplus", SDLK_KP_PLUS},
+    {"kpenter", SDLK_KP_ENTER},
+    {"kpequals", SDLK_KP_EQUALS},
+    {"kpcomma", SDLK_KP_COMMA},
+
 };
 std::map<std::string, u32> string_to_keyboard_mod_key_map = {
     {"lshift", SDL_KMOD_LSHIFT}, {"rshift", SDL_KMOD_RSHIFT}, {"lctrl", SDL_KMOD_LCTRL},
