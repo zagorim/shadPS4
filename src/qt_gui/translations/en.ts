@@ -53,6 +53,19 @@
 		</message>
 	</context>
 	<context>
+		<name>InstallDirSelect</name>
+		<message>
+			<location filename="../install_dir_select.cpp" line="30"/>
+			<source>shadPS4 - Choose directory</source>
+			<translation>shadPS4 - Choose directory</translation>
+		</message>
+		<message>
+			<location filename="../install_dir_select.cpp" line="37"/>
+			<source>Select which directory you want to install to.</source>
+			<translation>Select which directory you want to install to.</translation>
+		</message>
+	</context>
+	<context>
 		<name>GameInstallDialog</name>
 		<message>
 			<location filename="../game_install_dialog.cpp" line="24"/>
@@ -415,6 +428,11 @@
 			<translation>Is PS4 Pro</translation>
 		</message>
 		<message>
+			<location filename="../settings_dialog.ui" line="154"/>
+			<source>Enable Discord Rich Presence</source>
+			<translation>Enable Discord Rich Presence</translation>
+		</message>
+		<message>
 			<location filename="../settings_dialog.ui" line="155"/>
 			<source>Username</source>
 			<translation>Username</translation>
@@ -453,11 +471,6 @@
 			<location filename="../settings_dialog.ui" line="668"/>
 			<source>Hide Cursor Idle Timeout</source>
 			<translation>Hide Cursor Idle Timeout</translation>
-		</message>
-		<message>
-			<location filename="../settings_dialog.ui" line="595"/>
-			<source>Input</source>
-			<translation>Input</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.ui" line="767"/>
@@ -508,6 +521,26 @@
 			<location filename="../settings_dialog.ui" line="469"/>
 			<source>Enable NULL GPU</source>
 			<translation>Enable NULL GPU</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1111"/>
+			<source>Paths</source>
+			<translation>Paths</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1119"/>
+			<source>Game Folders</source>
+			<translation>Game Folders</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1141"/>
+			<source>Add...</source>
+			<translation>Add...</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1141"/>
+			<source>Remove</source>
+			<translation>Remove</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.ui" line="517"/>
@@ -1023,6 +1056,11 @@
 			<source>fullscreenCheckBox</source>
 			<translation>Enable Full Screen:\nAutomatically puts the game window into full-screen mode.\nThis can be toggled by pressing the F11 key.</translation>
 		</message>
+                <message>
+			<location filename="../settings_dialog.cpp" line="293"/>
+			<source>separateUpdatesCheckBox</source>
+			<translation>Enable Separate Update Folder:\nEnables installing game updates into a separate folder for easy management.</translation>
+		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="295"/>
 			<source>showSplashCheckBox</source>
@@ -1032,6 +1070,11 @@
 			<location filename="../settings_dialog.cpp" line="297"/>
 			<source>ps4proCheckBox</source>
 			<translation>Is PS4 Pro:\nMakes the emulator act as a PS4 PRO, which may enable special features in games that support it.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="438"/>
+			<source>discordRPCCheckbox</source>
+			<translation>Enable Discord Rich Presence:\nDisplays the emulator icon and relevant information on your Discord profile.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="299"/>
@@ -1046,7 +1089,7 @@
 		<message>
 			<location filename="../settings_dialog.cpp" line="303"/>
 			<source>logFilter</source>
-			<translation>Log Filter: Filters the log to only print specific information. Examples: "Core:Trace" "Lib.Pad:Debug Common.Filesystem:Error" "*:Critical" Levels: Trace, Debug, Info, Warning, Error, Critical - in this order, a specific level silences all levels preceding it in the list and logs every level after it.</translation>
+			<translation>Log Filter:\nFilters the log to only print specific information.\nExamples: "Core:Trace" "Lib.Pad:Debug Common.Filesystem:Error" "*:Critical"\nLevels: Trace, Debug, Info, Warning, Error, Critical - in this order, a specific level silences all levels preceding it in the list and logs every level after it.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="305"/>
@@ -1059,19 +1102,19 @@
 			<translation>Play Title Music:\nIf a game supports it, enable playing special music when selecting the game in the GUI.</translation>
 		</message>
 		<message>
-			<location filename="../settings_dialog.cpp" line="392"/>
-			<source>cursorGroupBox</source>
-			<translation>Cursor:\nChange settings related to the cursor.</translation>
-		</message>
-		<message>
-			<location filename="../settings_dialog.cpp" line="394"/>
+			<location filename="../settings_dialog.cpp" line="450"/>
 			<source>hideCursorGroupBox</source>
-			<translation>Hide Cursor:\nSet cursor hiding behavior.</translation>
+			<translation>Hide Cursor:\nChoose when the cursor will disappear:\nNever: You will always see the mouse.\nidle: Set a time for it to disappear after being idle.\nAlways: you will never see the mouse.</translation>
 		</message>
 		<message>
-			<location filename="../settings_dialog.cpp" line="396"/>
+			<location filename="../settings_dialog.cpp" line="452"/>
 			<source>idleTimeoutGroupBox</source>
 			<translation>Hide Idle Cursor Timeout:\nThe duration (seconds) after which the cursor that has been idle hides itself.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="454"/>
+			<source>backButtonBehaviorGroupBox</source>
+			<translation>Back Button Behavior:\nSets the controller's back button to emulate tapping the specified position on the PS4 touchpad.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="70"/>
@@ -1087,16 +1130,6 @@
 			<location filename="../settings_dialog.cpp" line="72"/>
 			<source>Always</source>
 			<translation>Always</translation>
-		</message>
-		<message>
-			<location filename="../settings_dialog.cpp" line="330"/>
-			<source>backButtonBehaviorGroupBox</source>
-			<translation>Back Button Behavior:\nAllows setting which part of the touchpad the back button will emulate a touch on.</translation>
-		</message>
-		<message>
-			<location filename="../settings_dialog.cpp" line="330"/>
-			<source>backButtonBehaviorGroupBox</source>
-			<translation>Back Button Behavior:\nAllows setting which part of the touchpad the back button will emulate a touch on.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="101"/>
@@ -1146,17 +1179,17 @@
 		<message>
 			<location filename="../settings_dialog.cpp" line="465"/>
 			<source>gameFoldersBox</source>
-			<translation>Game Folders: The list of folders to check for installed games.</translation>
+			<translation>Game Folders:\nThe list of folders to check for installed games.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="465"/>
 			<source>addFolderButton</source>
-			<translation>Add: Add a folder to the list.</translation>
+			<translation>Add:\nAdd a folder to the list.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="465"/>
 			<source>removeFolderButton</source>
-			<translation>Remove: Remove a folder from the list.</translation>
+			<translation>Remove:\nRemove a folder from the list.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="329"/>
@@ -1274,7 +1307,7 @@
 			<source>Update Available</source>
 			<translation>Update Available</translation>
 		</message>
-		<message> 
+		<message>
 			<location filename="../check_update.cpp" line="187"/>
 			<source>Update Channel</source>
 			<translation>Update Channel</translation>

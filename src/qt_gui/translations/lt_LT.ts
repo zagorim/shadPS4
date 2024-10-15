@@ -53,6 +53,19 @@
 		</message>
 	</context>
 	<context>
+		<name>InstallDirSelect</name>
+		<message>
+			<location filename="../install_dir_select.cpp" line="30"/>
+			<source>shadPS4 - Choose directory</source>
+			<translation>shadPS4 - Choose directory</translation>
+		</message>
+		<message>
+			<location filename="../install_dir_select.cpp" line="37"/>
+			<source>Select which directory you want to install to.</source>
+			<translation>Select which directory you want to install to.</translation>
+		</message>
+	</context>
+	<context>
 		<name>GameInstallDialog</name>
 		<message>
 			<location filename="../game_install_dialog.cpp" line="24"/>
@@ -415,6 +428,11 @@
 			<translation>Is PS4 Pro</translation>
 		</message>
 		<message>
+			<location filename="../settings_dialog.ui" line="154"/>
+			<source>Enable Discord Rich Presence</source>
+			<translation>Įjungti Discord Rich Presence</translation>
+		</message>
+		<message>
 			<location filename="../settings_dialog.ui" line="155"/>
 			<source>Username</source>
 			<translation>Username</translation>
@@ -433,6 +451,36 @@
 			<location filename="../settings_dialog.ui" line="235"/>
 			<source>Log Filter</source>
 			<translation>Log Filter</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="595"/>
+			<source>Input</source>
+			<translation>Įvestis</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="611"/>
+			<source>Cursor</source>
+			<translation>Žymeklis</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="635"/>
+			<source>Hide Cursor</source>
+			<translation>Slėpti žymeklį</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="668"/>
+			<source>Hide Cursor Idle Timeout</source>
+			<translation>Žymeklio paslėpimo neveikimo laikas</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="767"/>
+			<source>Controller</source>
+			<translation>Valdiklis</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="797"/>
+			<source>Back Button Behavior</source>
+			<translation>Atgal mygtuko elgsena</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.ui" line="272"/>
@@ -473,6 +521,26 @@
 			<location filename="../settings_dialog.ui" line="469"/>
 			<source>Enable NULL GPU</source>
 			<translation>Enable NULL GPU</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1111"/>
+			<source>Paths</source>
+			<translation>Keliai</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1119"/>
+			<source>Game Folders</source>
+			<translation>Žaidimų aplankai</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1141"/>
+			<source>Add...</source>
+			<translation>Pridėti...</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.ui" line="1141"/>
+			<source>Remove</source>
+			<translation>Pašalinti</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.ui" line="517"/>
@@ -999,6 +1067,11 @@
 			<translation>Ar PS4 Pro:\nPadaro, kad emuliatorius veiktų kaip PS4 PRO, kas gali įjungti specialias funkcijas žaidimuose, kurie tai palaiko.</translation>
 		</message>
 		<message>
+			<location filename="../settings_dialog.cpp" line="438"/>
+			<source>discordRPCCheckbox</source>
+			<translation>Įjungti Discord Rich Presence:\nRodo emuliatoriaus ikoną ir susijusią informaciją jūsų Discord profilyje.</translation>
+		</message>
+		<message>
 			<location filename="../settings_dialog.cpp" line="299"/>
 			<source>userName</source>
 			<translation>Vartotojo vardas:\nNustato PS4 paskyros vartotojo vardą, kuris gali būti rodomas kai kuriuose žaidimuose.</translation>
@@ -1011,7 +1084,7 @@
 		<message>
 			<location filename="../settings_dialog.cpp" line="303"/>
 			<source>logFilter</source>
-			<translation>Žurnalo filtras: Filtruojamas žurnalas, kad būtų spausdinama tik konkreti informacija. Pavyzdžiai: "Core:Trace" "Lib.Pad:Debug Common.Filesystem:Error" "*:Critical" Lygiai: Trace, Debug, Info, Warning, Error, Critical - šia tvarka, konkretus lygis nutildo visus ankstesnius lygius sąraše ir registruoja visus vėlesnius.</translation>
+			<translation>Žurnalo filtras:\nFiltruojamas žurnalas, kad būtų spausdinama tik konkreti informacija.\nPavyzdžiai: "Core:Trace" "Lib.Pad:Debug Common.Filesystem:Error" "*:Critical" Lygiai: Trace, Debug, Info, Warning, Error, Critical - šia tvarka, konkretus lygis nutildo visus ankstesnius lygius sąraše ir registruoja visus vėlesnius.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="305"/>
@@ -1022,6 +1095,56 @@
 			<location filename="../settings_dialog.cpp" line="306"/>
 			<source>GUIgroupBox</source>
 			<translation>Groti antraščių muziką:\nJei žaidimas tai palaiko, įjungia specialios muzikos grojimą, kai pasirinkite žaidimą GUI.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="450"/>
+			<source>hideCursorGroupBox</source>
+			<translation>Slėpti žymeklį:\nPasirinkite, kada žymeklis dings:\nNiekuomet: Visada matysite pelę.\nNeaktyvus: Nustatykite laiką, po kurio ji dings, kai bus neaktyvi.\nVisada: niekada nematysite pelės.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="452"/>
+			<source>idleTimeoutGroupBox</source>
+			<translation>Nustatykite laiką, po kurio pelė dings, kai bus neaktyvi.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="454"/>
+			<source>backButtonBehaviorGroupBox</source>
+			<translation>Atgal mygtuko elgesys:\nNustato valdiklio atgal mygtuką imituoti paspaudimą nurodytoje vietoje PS4 jutiklinėje plokštėje.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="70"/>
+			<source>Never</source>
+			<translation>Niekada</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="71"/>
+			<source>Idle</source>
+			<translation>Neaktyvus</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="72"/>
+			<source>Always</source>
+			<translation>Visada</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="101"/>
+			<source>Touchpad Left</source>
+			<translation>Jutiklinis Paviršius Kairėje</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="102"/>
+			<source>Touchpad Right</source>
+			<translation>Jutiklinis Paviršius Dešinėje</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="103"/>
+			<source>Touchpad Center</source>
+			<translation>Jutiklinis Paviršius Centre</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="104"/>
+			<source>None</source>
+			<translation>Nieko</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="312"/>
@@ -1047,6 +1170,21 @@
 			<location filename="../settings_dialog.cpp" line="322"/>
 			<source>nullGpuCheckBox</source>
 			<translation>Įjungti tuščią GPU:\nTechninio derinimo tikslais išjungia žaidimo renderiavimą, tarsi nebūtų grafikos plokštės.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="465"/>
+			<source>gameFoldersBox</source>
+			<translation>Žaidimų aplankai:\nAplankų sąrašas, kurį reikia patikrinti, ar yra įdiegtų žaidimų.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="465"/>
+			<source>addFolderButton</source>
+			<translation>Pridėti:\nPridėti aplanką į sąrašą.</translation>
+		</message>
+		<message>
+			<location filename="../settings_dialog.cpp" line="465"/>
+			<source>removeFolderButton</source>
+			<translation>Pašalinti:\nPašalinti aplanką iš sąrašo.</translation>
 		</message>
 		<message>
 			<location filename="../settings_dialog.cpp" line="329"/>
@@ -1164,7 +1302,7 @@
 			<source>Update Available</source>
 			<translation>Prieinama atnaujinimas</translation>
 		</message>
-		<message> 
+		<message>
 			<location filename="../check_update.cpp" line="187"/>
 			<source>Update Channel</source>
 			<translation>Atnaujinimo Kanalas</translation>
