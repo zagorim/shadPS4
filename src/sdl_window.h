@@ -23,6 +23,7 @@ public:
     Uint32 key;
     SDL_Keymod modifier;
     KeyBinding(SDL_Keycode k, SDL_Keymod m) : key(k), modifier(m){};
+    KeyBinding(const SDL_Event* event);
     bool operator<(const KeyBinding& other) const;
     ~KeyBinding(){};
 };
@@ -82,7 +83,7 @@ public:
 
 private:
     void onResize();
-    void onKeyPress(const SDL_Event* event);
+    void onKeyboardMouseEvent(const SDL_Event* event);
     void onGamepadEvent(const SDL_Event* event);
     int sdlGamepadToOrbisButton(u8 button);
 
