@@ -40,6 +40,7 @@
 Uint32 getMouseWheelEvent(const SDL_Event* event) {
     if (event->type != SDL_EVENT_MOUSE_WHEEL)
         return 0;
+
     // std::cout << "We got a wheel event! ";
     if (event->wheel.y > 0) {
         return SDL_EVENT_MOUSE_WHEEL_UP;
@@ -54,11 +55,13 @@ Uint32 getMouseWheelEvent(const SDL_Event* event) {
 }
 
 namespace Frontend {
+
 using Libraries::Pad::OrbisPadButtonDataOffset;
 
 KeyBinding::KeyBinding(const SDL_Event* event) {
     modifier = SDL_GetModState();
     key = 0;
+
     // std::cout << "Someone called the new binding ctor!\n";
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) {
         key = event->key.key;
@@ -71,6 +74,7 @@ KeyBinding::KeyBinding(const SDL_Event* event) {
         std::cout << "We don't support this event type!\n";
     }
 }
+
 bool KeyBinding::operator<(const KeyBinding& other) const {
     return std::tie(key, modifier) < std::tie(other.key, other.modifier);
 }
@@ -247,75 +251,7 @@ std::map<KeyBinding, AxisMapping> axis_map = {};
 
 int mouse_joystick_binding = 0;
 Uint32 mouse_polling_id = 0;
-bool mouse_enabled = true, leftjoystick_halfmode = false, rightjoystick_halfmode = false;
-
-// i wrapped it in a function so I can collapse it
-std::string getDefaultConfig() {
-    std::string default_config =
-        R"(## SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
-## SPDX-License-Identifier: GPL-2.0-or-later
- 
-#Default controller button mappings
-
-#Taken keys:
-#F11 : fullscreen
-#F10 : FPS counter
-#F9  : toggle mouse capture
-#F8  : reparse keyboard input(this)
-#F7  : toggle mouse-to-joystick input 
-#      (it overwrites everything else to that joystick, so this is required)
-
-#This is a mapping for Bloodborne, inspired by other Souls titles on PC.
-
-#This is a quick and dirty implementation of binding the mouse to a user-specified joystick
-mouse_to_joystick = right;
-
-#Use another item(healing), change status in inventory
-triangle = f;
-#Dodge, back in inventory
-circle = space;
-#Interact, select item in inventory
-cross = e;
-#Use quick item, remove item in inventory
-square = r;
-
-#Emergency extra bullets
-up = w, lalt;
-#Change quick item
-down = s, lalt;
-#Change weapon in left hand
-left = a, lalt;
-#Change weapon in right hand
-right = d, lalt;
-
-#Menu
-options = escape;
-#Gestures
-touchpad = g;
-
-#Transform
-l1 = rightbutton, lshift;
-#Shoot
-r1 = leftbutton;
-#Light attack
-l2 = rightbutton;
-#Heavy attack
-r2 = leftbutton, lshift;
-#Does nothing
-l3 = x;
-#Center cam, lock on
-r3 = q;
-
-#Axis mappings
-#Move
-axis_left_x_minus = a;
-axis_left_x_plus = d;
-axis_left_y_minus = w;
-axis_left_y_plus = s;
-)";
-    return default_config;
-}
-
+bool mouse_enabled = false, leftjoystick_halfmode = false, rightjoystick_halfmode = false;
 void WindowSDL::parseInputConfig(const std::string& filename) {
 
     // Read configuration file.
@@ -326,7 +262,6 @@ void WindowSDL::parseInputConfig(const std::string& filename) {
         std::ofstream file;
         file.open(config_file, std::ios::out);
         if (file.is_open()) {
-            file << getDefaultConfig();
             file.close();
             std::cout << "Config file generated.\n";
         } else {
@@ -428,15 +363,15 @@ Uint32 WindowSDL::keyRepeatCallback(void* param, Uint32 id, Uint32 interval) {
     auto* data = (std::pair<WindowSDL*, SDL_Event*>*)param;
     KeyBinding binding(data->second);
     if (data->second->type == SDL_EVENT_MOUSE_WHEEL) {
-        // send an off signal a frame later
+
         auto button_it = button_map.find(binding);
         auto axis_it = axis_map.find(binding);
         if (button_it != button_map.end()) {
-            data->first->updateButton(binding, button_it->second, false);
+            data->first->updateButton(binding, button_it->second, true);
         } else if (axis_it != axis_map.end()) {
+
             data->first->controller->Axis(0, axis_it->second.axis, Input::GetAxis(-0x80, 0x80, 0));
         }
-        return 0;
     }
     data->first->updateModKeyedInputsManually(binding);
     delete data->second;
@@ -632,6 +567,10 @@ void WindowSDL::onKeyPress(const SDL_Event* event) {
     bool input_down = event->type == SDL_EVENT_KEY_DOWN ||
                       event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                       event->type == SDL_EVENT_MOUSE_WHEEL;
+
+    u32 button = 0;
+    Input::Axis axis = Input::Axis::AxisMax;
+    int axis_value = 0;
 
     // Handle window controls outside of the input maps
     if (event->type == SDL_EVENT_KEY_DOWN) {
