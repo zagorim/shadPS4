@@ -45,7 +45,9 @@ HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
     // Add expandable sections
         mainLayout->addWidget(new ExpandableSection("Quickstart", quickstart()));
         mainLayout->addWidget(new ExpandableSection("FAQ", faq()));
-        mainLayout->addWidget(new ExpandableSection("Keybinding Syntax", syntax()));
+        mainLayout->addWidget(new ExpandableSection("Syntax", syntax()));
+        mainLayout->addWidget(new ExpandableSection("Special Bindings", special()));
+        mainLayout->addWidget(new ExpandableSection("Keybindings", bindings()));
 
     // Create a widget to hold all sections (with unified scrollable area)
     QWidget *containerWidget = new QWidget;
@@ -63,6 +65,6 @@ HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
     dialogLayout->addWidget(scrollArea);
     setLayout(dialogLayout);
 
-    setMinimumSize(400, 100); // Set a reasonable window size// Set the layout for the dialog
+    setMinimumSize(500, 400); // Set a reasonable window size// Set the layout for the dialog
 
 }
