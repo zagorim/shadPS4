@@ -251,7 +251,7 @@ Uint32 mouse_polling_id = 0;
 bool mouse_enabled = false, leftjoystick_halfmode = false, rightjoystick_halfmode = false;
 
 // i wrapped it in a function so I can collapse it
-std::string getDefaultConfig() {
+std::string getDefaultKeyboardConfig() {
     std::string default_config =
         R"(## SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 ## SPDX-License-Identifier: GPL-2.0-or-later
@@ -326,7 +326,7 @@ void WindowSDL::parseInputConfig(const std::string& filename) {
         std::ofstream file;
         file.open(config_file, std::ios::out);
         if (file.is_open()) {
-            file << getDefaultConfig();
+            file << getDefaultKeyboardConfig();
             file.close();
             std::cout << "Config file generated.\n";
         } else {

@@ -18,6 +18,8 @@ class GameController;
 
 namespace Frontend {
 
+std::string getDefaultKeyboardConfig();
+
 class KeyBinding {
 public:
     Uint32 key;
