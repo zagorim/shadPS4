@@ -3,8 +3,8 @@
 
 #include <QDockWidget>
 #include <QKeyEvent>
-#include <QProgressDialog>
 #include <QPlainTextEdit>
+#include <QProgressDialog>
 
 #include "about_dialog.h"
 #include "cheats_patches.h"
