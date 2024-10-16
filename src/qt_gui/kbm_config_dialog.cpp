@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "kbm_config_dialog.h"
+#include "kbm_help_dialog.h"
+
+#include "src/sdl_window.h"
+#include "common/path_util.h"
+#include <iostream>
+#include <fstream>
+
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
@@ -53,7 +60,19 @@ EditorDialog::EditorDialog(QWidget *parent)
 }
 
 void EditorDialog::loadFile() {
-    QFile file("./user/keyboardInputConfig.ini");
+    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "keyboardInputConfig.ini";
+    if (!std::filesystem::exists(config_file)) {
+        // create it
+        std::ofstream file;
+        file.open(config_file, std::ios::out);
+        if (file.is_open()) {
+            file << Frontend::getDefaultKeyboardConfig();
+            file.close();
+        } else {
+            QMessageBox::warning(this, "Error", "Could not create the file");
+        }
+    }
+    QFile file(config_file);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&file);
         editor->setPlainText(in.readAll());
@@ -65,7 +84,8 @@ void EditorDialog::loadFile() {
 }
 
 void EditorDialog::saveFile() {
-    QFile file("./user/keyboardInputConfig.ini");
+    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "keyboardInputConfig.ini";
+    QFile file(config_file);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
         out << editor->toPlainText();
@@ -95,6 +115,13 @@ void EditorDialog::closeEvent(QCloseEvent *event) {
         event->accept();  // No changes, close the dialog without prompting
     }
 }
+void EditorDialog::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Escape) {
+        close();  // Trigger the close action, same as pressing the close button
+    } else {
+        QDialog::keyPressEvent(event);  // Call the base class implementation for other keys
+    }
+}
 
 void EditorDialog::onSaveClicked() {
     saveFile();
@@ -106,28 +133,10 @@ void EditorDialog::onCancelClicked() {
 }
 
 void EditorDialog::onHelpClicked() {
-    QDialog *helpDialog = new QDialog(this);
+
+    HelpDialog *helpDialog = new HelpDialog(this);
     helpDialog->setWindowTitle("Help");
-    helpDialog->resize(600, 400);
-
-    QPlainTextEdit *helpEditor = new QPlainTextEdit(helpDialog);
-    helpEditor->setReadOnly(true);
-
-    QVBoxLayout *helpLayout = new QVBoxLayout(helpDialog);
-    helpLayout->addWidget(helpEditor);
-    helpDialog->setLayout(helpLayout);
-
-    // Load the help.txt file content
-    QFile helpFile("./user/help.txt");
-    if (helpFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&helpFile);
-        helpEditor->setPlainText(in.readAll());
-        helpFile.close();
-    } else {
-        QMessageBox::warning(this, "Error", "Could not open the help file");
-    }
-
-    helpDialog->exec();  // Show help dialog modally
+    helpDialog->exec();
 }
 
 bool EditorDialog::hasUnsavedChanges() {

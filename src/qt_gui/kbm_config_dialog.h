@@ -14,6 +14,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;  // Override close event
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
     QPlainTextEdit *editor;  // Editor widget for the config file
@@ -28,7 +29,6 @@ private slots:
     void onSaveClicked();  // Save button slot
     void onCancelClicked();  // Slot for handling cancel button
     void onHelpClicked();  // Slot for handling help button
-    //void onTextChanged();  // Slot to detect text changes
 };
 
 #endif // EDITOR_DIALOG_H
