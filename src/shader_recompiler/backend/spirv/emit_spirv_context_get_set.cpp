@@ -284,6 +284,10 @@ Id EmitGetAttributeU32(EmitContext& ctx, IR::Attribute attr, u32 comp) {
     case IR::Attribute::PatchVertices:
         ASSERT(ctx.info.l_stage == LogicalStage::TessellationControl);
         return ctx.OpLoad(ctx.U32[1], ctx.patch_vertices);
+    case IR::Attribute::PackedHullInvocationInfo:
+        // TODO figure out what to do with this
+        // should be dead code, but otherwise return 0 or concat PrimitiveId and InvocationId
+        return ctx.u32_zero_value;
     default:
         UNREACHABLE_MSG("Read U32 attribute {}", attr);
     }

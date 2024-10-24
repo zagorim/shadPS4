@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <spirv/unified1/spirv.hpp11>
 #include "shader_recompiler/runtime_info.h"
 #pragma clang optimize off
 #include <span>

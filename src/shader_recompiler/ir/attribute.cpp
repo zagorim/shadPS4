@@ -118,6 +118,8 @@ std::string NameOf(Attribute attribute) {
         return "LocalInvocationIndex";
     case Attribute::InvocationId:
         return "InvocationId";
+    case Attribute::PackedHullInvocationInfo:
+        return "PackedHullInvocationInfo";
     case Attribute::PatchVertices:
         return "PatchVertices";
     case Attribute::TessellationEvaluationPointU:
