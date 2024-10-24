@@ -86,11 +86,14 @@ struct VertexRuntimeInfo {
 
 struct HullRuntimeInfo {
     u32 output_control_points;
-    // trying to debug
+    // trying to debug TODO probably delete this
     u32 input_control_points;
     u32 num_patches;
     u32 num_instances;
     u64 tess_factor_memory_base;
+    AmdGpu::TessellationType tess_type;
+    AmdGpu::TessellationTopology tess_topology;
+    AmdGpu::TessellationPartitioning tess_partitioning;
 
     bool operator==(const HullRuntimeInfo& other) const noexcept {
         return output_control_points == other.output_control_points;

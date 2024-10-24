@@ -54,30 +54,24 @@ void Translator::EmitPrologue() {
         }
         break;
     case LogicalStage::TessellationControl: {
-        IR::U32 invocation_info = ir.Imm32(0U);
-        invocation_info =
-            ir.BitFieldInsert(invocation_info, ir.GetAttributeU32(IR::Attribute::PrimitiveId),
-                              ir.Imm32(0), ir.Imm32(8U));
-        // TODO make sure patches have max 32 vertices
-        invocation_info =
-            ir.BitFieldInsert(invocation_info, ir.GetAttributeU32(IR::Attribute::InvocationId),
-                              ir.Imm32(8U), ir.Imm32(5U));
-        // V1: vertex_id_in_output_patch [0:4] | in/out_patch_id [0:8]
-        ir.SetVectorReg(IR::VectorReg::V1, invocation_info);
-
         // v_bfe_u32       v0, v1, 8, 5
-        ir.SetVectorReg(IR::VectorReg::V0, ir.GetAttributeU32(IR::Attribute::InvocationId));
         // v_bfe_u32       v2, v1, 0, 8
-        ir.SetVectorReg(IR::VectorReg::V2, ir.GetAttributeU32(IR::Attribute::PrimitiveId));
-        // TODO V0 and V2 will get overwritten with bitfieldextract unless we eat those bfe during
-        // translate
+        // Hull shader seems expect 2 values packed in V1.
+        // V1[0:7] seems like patch_id, aka PrimitiveId
+        // V1[8:12] seems like the output control point id, aka InvocationId
+        // however, in "passthrough" hull shaders, with the same input/output patch topology, and no
+        // additional per-output-control-point attributes, it doesn't make much sense for V1[8:12]
+        // to be a control point ID.
+        // Thats because this value contributes to address calculations for per-patch output writes,
+        // e.g. to the tess factors, in these "passthrough" shaders.
+        // V[0:7] also contributes, which is expected
+        ir.SetVectorReg(IR::VectorReg::V1,
+                        ir.GetAttributeU32(IR::Attribute::PackedHullInvocationInfo));
 
-        // TODO: for cleaner solution, do SROA (scalar replacement of aggregates) on bitfield
-        // members
-
-        // If input and output topo are the same, copy inputs to outputs by InvocationID, to
+        // Copy inputs to outputs by InvocationID, to
         // handle the passthrough case
-        // TODO: do this later, and not if uneccessary
+        // TODO: skip this if unecessary
+        // TODO: probably do this later because we dont know what attributes are active
         if (true) {
             // TODO: ctreate if stmt control flow:
             // if (invocationID < gl_PatchVerticesIn) {

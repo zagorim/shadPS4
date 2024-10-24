@@ -102,6 +102,9 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
         // Suspicious about this in apparently "passthrough" hull shader. Probably not releva
         info.hs_info.num_instances = regs.num_instances.NumInstances();
         info.hs_info.tess_factor_memory_base = regs.vgt_tf_memory_base.MemoryBase();
+        info.hs_info.tess_type = regs.tess_config.type;
+        info.hs_info.tess_topology = regs.tess_config.topology;
+        info.hs_info.tess_partitioning = regs.tess_config.partitioning;
         break;
     }
     case Stage::Export: {
