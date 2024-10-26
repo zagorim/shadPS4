@@ -210,9 +210,15 @@ std::map<std::string, u32> string_to_keyboard_key_map = {
     {"rmeta", SDLK_RGUI},
     {"lwin", SDLK_LGUI},
     {"rwin", SDLK_RGUI},
+    {"home", SDLK_HOME},
+    {"end", SDLK_END},
+    {"pgup", SDLK_PAGEUP},
+    {"pgdown", SDLK_PAGEDOWN},
     {"leftbutton", SDL_BUTTON_LEFT},
     {"rightbutton", SDL_BUTTON_RIGHT},
     {"middlebutton", SDL_BUTTON_MIDDLE},
+    {"sidebuttonback", SDL_BUTTON_X1},
+    {"sidebuttonforward", SDL_BUTTON_X2},
     {"mousewheelup", SDL_EVENT_MOUSE_WHEEL_UP},
     {"mousewheeldown", SDL_EVENT_MOUSE_WHEEL_DOWN},
     {"mousewheelleft", SDL_EVENT_MOUSE_WHEEL_LEFT},
@@ -533,6 +539,7 @@ void WindowSDL::waitEvent() {
         break;
     }
 }
+
 void WindowSDL::onResize() {
     SDL_GetWindowSizeInPixels(window, &width, &height);
     ImGui::Core::OnResize();
