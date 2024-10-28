@@ -251,7 +251,7 @@ void MainWindow::CreateConnects() {
         settingsDialog->exec();
     });
 
-    connect(ui->updaterAct, &QAction::triggered, this, [this]() {
+    connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
         auto settingsDialog = new SettingsDialog(m_physical_devices, this);
 
         connect(settingsDialog, &SettingsDialog::LanguageChanged, this,
