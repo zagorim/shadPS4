@@ -60,13 +60,13 @@ EditorDialog::EditorDialog(QWidget *parent)
 }
 
 void EditorDialog::loadFile() {
-    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "keyboardInputConfig.ini";
+    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "kbmConfig" / "default.ini";
     if (!std::filesystem::exists(config_file)) {
         // create it
         std::ofstream file;
         file.open(config_file, std::ios::out);
         if (file.is_open()) {
-            file << Frontend::getDefaultKeyboardConfig();
+            file << KBMConfig::getDefaultKeyboardConfig();
             file.close();
         } else {
             QMessageBox::warning(this, "Error", "Could not create the file");
@@ -84,7 +84,7 @@ void EditorDialog::loadFile() {
 }
 
 void EditorDialog::saveFile() {
-    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "keyboardInputConfig.ini";
+    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "kbmConfig" / "default.ini";
     QFile file(config_file);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
