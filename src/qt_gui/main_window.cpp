@@ -245,7 +245,7 @@ void MainWindow::CreateConnects() {
         settingsDialog->exec();
     });
 
-    connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
+    connect(ui->updaterAct, &QAction::triggered, this, [this]() {
         auto settingsDialog = new SettingsDialog(m_physical_devices, this);
 
         connect(settingsDialog, &SettingsDialog::LanguageChanged, this,
@@ -777,8 +777,8 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
                         return;
                     }
                 } else {
-                    msgBox.setText(QString(tr("DLC already installed:") + "\n" + addonDirPath +
-                                           "\n\n" + tr("Would you like to overwrite?")));
+                    msgBox.setText(QString(tr("Game already installed") + "\n" + gameDirPath + "\n" + 
+                                           tr("Would you like to overwrite?")));
                     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
                     msgBox.setDefaultButton(QMessageBox::No);
                     int result = msgBox.exec();
