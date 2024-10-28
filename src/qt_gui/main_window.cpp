@@ -777,8 +777,8 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
                         return;
                     }
                 } else {
-                    msgBox.setText(QString(tr("Game already installed") + "\n" + gameDirPath + "\n" + 
-                                           tr("Would you like to overwrite?")));
+                    msgBox.setText(QString(tr("Game already installed") + "\n" + gameDirPath +
+                                           "\n" + tr("Would you like to overwrite?")));
                     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
                     msgBox.setDefaultButton(QMessageBox::No);
                     int result = msgBox.exec();
