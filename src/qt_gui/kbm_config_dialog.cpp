@@ -145,19 +145,26 @@ void EditorDialog::onSaveClicked() {
 void EditorDialog::onCancelClicked() {
     reject();  // Close the dialog
 }
-
+bool isHelpOpen = false;
+HelpDialog *helpDialog;
 void EditorDialog::onHelpClicked() {
-    HelpDialog *helpDialog = new HelpDialog(this);
-    helpDialog->setWindowTitle("Help");
-    helpDialog->setAttribute(Qt::WA_DeleteOnClose);  // Clean up on close
-    // Get the position and size of the Config window
-    QRect configGeometry = this->geometry();
-    int helpX = configGeometry.x() + configGeometry.width() + 10; // 10 pixels offset
-    int helpY = configGeometry.y();
-
-    // Move the Help dialog to the right side of the Config window
-    helpDialog->move(helpX, helpY);
-    helpDialog->show();
+    if(!isHelpOpen) {
+        helpDialog = new HelpDialog(this);
+        helpDialog->setWindowTitle("Help");
+        helpDialog->setAttribute(Qt::WA_DeleteOnClose);  // Clean up on close
+        // Get the position and size of the Config window
+        QRect configGeometry = this->geometry();
+        int helpX = configGeometry.x() + configGeometry.width() + 10; // 10 pixels offset
+        int helpY = configGeometry.y();
+        // Move the Help dialog to the right side of the Config window
+        helpDialog->move(helpX, helpY);
+        helpDialog->show();
+        isHelpOpen = true;
+    } else {
+        helpDialog->close();
+        isHelpOpen = false;
+    }
+    
 }
 
 bool EditorDialog::hasUnsavedChanges() {
