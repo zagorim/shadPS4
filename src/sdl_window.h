@@ -30,8 +30,6 @@ class GameController;
 
 namespace KBMConfig {
 
-std::string getDefaultKeyboardConfig();
-
 class KeyBinding {
 public:
     Uint32 key;
