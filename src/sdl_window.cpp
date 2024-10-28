@@ -15,6 +15,7 @@
 #include <SDL3/SDL_video.h>
 #include "common/assert.h"
 #include "common/config.h"
+#include "common/elf_info.h"
 #include "common/io_file.h"
 #include "common/path_util.h"
 #include "common/version.h"
@@ -251,9 +252,90 @@ std::map<std::string, u32> string_to_keyboard_mod_key_map = {
     {"none", SDL_KMOD_NONE}, // if you want to be fancy
 };
 
+// i wrapped it in a function so I can collapse it
+std::string getDefaultKeyboardConfig() {
+    std::string default_config =
+        R"(## SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
+## SPDX-License-Identifier: GPL-2.0-or-later
+ 
+#This is the default keybinding config
+#To change per-game configs, modify the CUSAXXXXX.ini files
+#To change the default config that applies to new games without already existing configs, modify default.ini
+#If you don't like certain mappings, delete, change or comment them out.
+#You can add any amount of KBM keybinds to a single controller input,
+#but you can use each KBM keybind for one controller input.
+
+#Keybinds used by the emulator (these are unchangeable):
+#F11 : fullscreen
+#F10 : FPS counter
+#F9  : toggle mouse-to-joystick input 
+#       (it overwrites everything else to that joystick, so this is required)
+#F8  : reparse keyboard input(this)
+
+#This is a mapping for Bloodborne, inspired by other Souls titles on PC.
+
+#Specifies which joystick the mouse movement controls.
+mouse_to_joystick = right;
+
+#Use healing item, change status in inventory
+triangle = f;
+#Dodge, back in inventory
+circle = space;
+#Interact, select item in inventory
+cross = e;
+#Use quick item, remove item in inventory
+square = r;
+
+#Emergency extra bullets
+up = w, lalt;
+up = mousewheelup;
+#Change quick item
+down = s, lalt;
+down = mousewheeldown;
+#Change weapon in left hand
+left = a, lalt;
+left = mousewheelleft;
+#Change weapon in right hand
+right = d, lalt;
+right = mousewheelright;
+#Change into 'inventory mode', so you don't have to hold lalt every time you go into menus
+modkey_toggle = i, lalt;
+
+#Menu
+options = escape;
+#Gestures
+touchpad = g;
+
+#Transform
+l1 = rightbutton, lshift;
+#Shoot
+r1 = leftbutton;
+#Light attack
+l2 = rightbutton;
+#Heavy attack
+r2 = leftbutton, lshift;
+#Does nothing
+l3 = x;
+#Center cam, lock on
+r3 = q;
+r3 = middlebutton;
+
+#Axis mappings
+#Move
+axis_left_x_minus = a;
+axis_left_x_plus = d;
+axis_left_y_minus = w;
+axis_left_y_plus = s;
+#Change to 'walk mode' by holding the following key:
+leftjoystick_halfmode = lctrl;
+)";
+    return default_config;
+}
+
 // Button map: maps key+modifier to controller button
 std::map<KeyBinding, u32> button_map = {};
 std::map<KeyBinding, AxisMapping> axis_map = {};
+std::map<SDL_Keycode, std::pair<SDL_Keymod, bool>> key_to_modkey_toggle_map = {};
 
 int mouse_joystick_binding = 0;
 Uint32 mouse_polling_id = 0;
