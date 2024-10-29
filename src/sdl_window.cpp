@@ -340,6 +340,60 @@ using namespace KBMConfig;
 using KBMConfig::AxisMapping;
 using KBMConfig::KeyBinding;
 
+template <typename S, typename T>
+typename std::map<S, T>::const_iterator reverseFind(std::map<S, T> map, T item) {
+    auto it = map.begin();
+    for (; it != map.end(); it++) {
+        if(it->second == item) {
+            return it;
+        }
+    }
+    return it;
+}
+
+std::string keylogger_file;
+void keyLoggerSetup() {
+    keylogger_file = (Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "keylogger.txt").generic_string();
+    std::ofstream clearer(keylogger_file);
+    clearer.clear();
+    clearer.close();
+}
+// I am very funny
+void keyLogger(const SDL_Event* e, bool is_down) {
+    u32 value_to_find;
+    switch(e->type){
+    case SDL_EVENT_MOUSE_WHEEL:
+        value_to_find = getMouseWheelEvent(e);
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        value_to_find = (u32)e->button.button;
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        value_to_find = (u32)e->button.button;
+        break;
+    case SDL_EVENT_KEY_DOWN:
+        value_to_find = e->key.key;
+        break;
+    case SDL_EVENT_KEY_UP:
+        value_to_find = e->key.key;
+        break;
+    default:
+        return;
+    }
+    std::map<std::string, u32>::const_iterator key_it = reverseFind(string_to_keyboard_key_map, value_to_find);
+    if(key_it == string_to_keyboard_key_map.end()) {
+        return;
+    }
+    std::ofstream keylogger_stream(keylogger_file, std::ios::app);
+    if (!keylogger_stream.is_open()) {
+        std::cout << "bruh\n";
+        return;
+    }
+    const std::string key_name = key_it->first;
+    keylogger_stream << (is_down ? "Pressed:   " : "Unpressed: ") << key_name << "\n";
+    keylogger_stream.close();
+}
+
 // modifiers are bitwise or-d together, so we need to check if ours is in that
 template <typename T>
 typename std::map<KeyBinding, T>::const_iterator FindKeyAllowingPartialModifiers(
@@ -369,6 +423,7 @@ Uint32 WindowSDL::keyRepeatCallback(void* param, Uint32 id, Uint32 interval) {
     KeyBinding binding(data->second);
     if (data->second->type == SDL_EVENT_MOUSE_WHEEL) {
         // send an off signal a frame later
+        keyLogger(data->second, false);
         auto button_it = button_map.find(binding);
         auto axis_it = axis_map.find(binding);
         if (button_it != button_map.end()) {
@@ -485,6 +540,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, Input::GameController* controller_
 #endif
     // initialize kbm controls
     parseInputConfig(std::string(Common::ElfInfo::Instance().GameSerial()));
+    keyLoggerSetup();
 }
 
 WindowSDL::~WindowSDL() = default;
@@ -499,6 +555,9 @@ void WindowSDL::waitEvent() {
     if (ImGui::Core::ProcessEvent(&event)) {
         return;
     }
+
+    //keyLogger(event);
+
     SDL_Event* event_copy = new SDL_Event();
     *event_copy = event;
     std::pair<WindowSDL*, SDL_Event*>* payload_to_timer =
@@ -587,6 +646,7 @@ void WindowSDL::onKeyboardMouseEvent(const SDL_Event* event) {
     bool input_down = event->type == SDL_EVENT_KEY_DOWN ||
                       event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                       event->type == SDL_EVENT_MOUSE_WHEEL;
+    keyLogger(event, input_down);
 
     // Handle window controls outside of the input maps
     if (event->type == SDL_EVENT_KEY_DOWN) {

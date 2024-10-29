@@ -33,15 +33,7 @@ EditorDialog::EditorDialog(QWidget *parent)
     // Create the game selection combo box
     gameComboBox = new QComboBox(this);
     gameComboBox->addItem("default");  // Add default option
-/*
-    gameComboBox = new QComboBox(this);
-    layout->addWidget(gameComboBox); // Add the combobox for selecting game configurations
 
-    // Populate the combo box with game configurations
-    QStringList gameConfigs = GameInfoClass::GetGameInfo(this);
-    gameComboBox->addItems(gameConfigs);
-    gameComboBox->setCurrentText("default.ini"); // Set the default selection
-*/
     // Load all installed games
     loadInstalledGames();
 
@@ -187,7 +179,9 @@ void EditorDialog::loadInstalledGames() {
 }
 QString previousGame = "default";
 void EditorDialog::onGameSelectionChanged(const QString &game) {
-    saveFile(previousGame);
+    if (hasUnsavedChanges()) {
+        saveFile(previousGame);
+    }
     loadFile(gameComboBox->currentText());  // Reload file based on the selected game
     previousGame = gameComboBox->currentText();
 }
