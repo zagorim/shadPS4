@@ -75,7 +75,10 @@ private:
     void onKeyPress(const SDL_Event* event);
     void onGamepadEvent(const SDL_Event* event);
 
-    int sdlGamepadToOrbisButton(u8 button);
+    void updateModKeyedInputsManually(KBMConfig::KeyBinding& binding);
+    void updateButton(KBMConfig::KeyBinding& binding, u32 button, bool isPressed);
+    static Uint32 mousePolling(void* param, Uint32 id, Uint32 interval);
+    void handleDelayedActions();
 
 private:
     s32 width;
