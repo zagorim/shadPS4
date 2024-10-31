@@ -1,4 +1,7 @@
-#include <QApplication>
+// SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+include <QApplication>
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QGroupBox>
