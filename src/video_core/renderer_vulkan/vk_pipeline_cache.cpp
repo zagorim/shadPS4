@@ -105,6 +105,7 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
         info.hs_info.tess_type = regs.tess_config.type;
         info.hs_info.tess_topology = regs.tess_config.topology;
         info.hs_info.tess_partitioning = regs.tess_config.partitioning;
+        info.hs_info.dynamic_hs = regs.stage_enable.dynamic_hs.Value();
         break;
     }
     case Stage::Export: {
@@ -227,7 +228,7 @@ const ComputePipeline* PipelineCache::GetComputePipeline() {
 
 bool ShouldSkipShader(u64 shader_hash, const char* shader_type) {
     static std::vector<u64> skip_hashes = {
-        0xbc234799 /* passthrough */,
+        // 0xbc234799 /* passthrough */,
         0x8453cd1c /* passthrough */,
         0xd67db0ef /* passthrough */,
         0x34121ac6 /* passthrough*/,

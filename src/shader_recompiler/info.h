@@ -268,6 +268,18 @@ struct Info {
             srt_info.walker_func(user_data.data(), flattened_ud_buf.data());
         }
     }
+
+    // Hack
+    bool isPassthroughTcs() {
+        static boost::container::vector<u64> passthrough_hashes = {
+            0xbc234799 /* passthrough */,       0x8453cd1c /* passthrough */,
+            0xd67db0ef /* passthrough */,       0x34121ac6 /* passthrough*/,
+            0xa26750c1 /* passthrough, warp */, 0xbb88db5f /* passthrough */,
+            0x90c6fb05 /* passthrough */,       0x627ac5b9 /* ayyylmao*, passthrough */,
+        };
+
+        return std::ranges::contains(passthrough_hashes, pgm_hash);
+    }
 };
 
 constexpr AmdGpu::Buffer BufferResource::GetSharp(const Info& info) const noexcept {
