@@ -948,7 +948,8 @@ struct Liverpool {
         BitField<2, 1, u32> hs_en;
         BitField<3, 2, u32> es_en;
         BitField<5, 1, u32> gs_en;
-        BitField<6, 1, u32> vs_en;
+        BitField<6, 2, u32> vs_en;
+        BitField<8, 24, u32> dynamic_hs; // TODO testing
 
         bool IsStageEnabled(u32 stage) const {
             switch (stage) {

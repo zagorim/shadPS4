@@ -126,6 +126,10 @@ std::string NameOf(Attribute attribute) {
         return "TessellationEvaluationPointU";
     case Attribute::TessellationEvaluationPointV:
         return "TessellationEvaluationPointV";
+    case Attribute::TcsNumPatches:
+        return "TcsInputMulA";
+    case Attribute::TcsInputCpStride:
+        return "TcsInputMulB";
     default:
         break;
     }

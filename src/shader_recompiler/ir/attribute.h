@@ -75,11 +75,13 @@ enum class Attribute : u64 {
     InstanceId0 = 78,  // step rate 0
     InstanceId1 = 79,  // step rate 1
     InvocationId = 80, // TCS id in output patch and instanced geometry shader id
+    PatchVertices = 81,
+    TessellationEvaluationPointU = 82,
+    TessellationEvaluationPointV = 83,
     PackedHullInvocationInfo =
-        81, // PrimitiveId (patch id) and InvocationId (output control point id)
-    PatchVertices = 82,
-    TessellationEvaluationPointU = 83,
-    TessellationEvaluationPointV = 84,
+        84,             // PrimitiveId (patch id) and InvocationId (output control point id)
+    TcsNumPatches = 85, // Figure this out, just marking it for now for pattern matching
+    TcsInputCpStride = 86,
     Max,
 };
 
