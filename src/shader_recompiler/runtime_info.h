@@ -94,6 +94,9 @@ struct HullRuntimeInfo {
     AmdGpu::TessellationType tess_type;
     AmdGpu::TessellationTopology tess_topology;
     AmdGpu::TessellationPartitioning tess_partitioning;
+    u32 dynamic_hs;
+    // HACK
+    bool is_passthrough;
 
     bool operator==(const HullRuntimeInfo& other) const noexcept {
         return output_control_points == other.output_control_points;
