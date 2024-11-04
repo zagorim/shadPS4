@@ -64,7 +64,6 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     const auto stage = program.info.stage;
 
     bool dump_ir = true;
-    bool extra_id_removal = true; // TODO remove all this stuff
     auto dumpMatchingIR = [&](std::string phase) {
         if (dump_ir) {
             if (Config::dumpShaders()) {
@@ -91,21 +90,14 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
         Shader::Optimization::HullShaderTransform(program, runtime_info);
         dumpMatchingIR("post_hull");
     }
-    Shader::Optimization::IdentityRemovalPass(program.blocks);
     Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
-    if (extra_id_removal) {
-        Shader::Optimization::IdentityRemovalPass(program.blocks);
-    }
     dumpMatchingIR("pre_ring");
     Shader::Optimization::RingAccessElimination(program, runtime_info);
-    if (extra_id_removal) {
-        Shader::Optimization::IdentityRemovalPass(program.blocks);
-    }
     dumpMatchingIR("post_ring");
     if (stage != Stage::Compute) {
         Shader::Optimization::LowerSharedMemToRegisters(program);
     }
-    Shader::Optimization::RingAccessElimination(program, runtime_info, program.info.stage);
+    Shader::Optimization::RingAccessElimination(program, runtime_info);
     Shader::Optimization::FlattenExtendedUserdataPass(program);
     Shader::Optimization::ResourceTrackingPass(program);
     Shader::Optimization::IdentityRemovalPass(program.blocks);

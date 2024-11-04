@@ -85,22 +85,17 @@ struct VertexRuntimeInfo {
 };
 
 struct HullRuntimeInfo {
-    u32 output_control_points;
-    // trying to debug TODO probably delete this
-    u32 input_control_points;
-    u32 num_patches;
-    u32 num_instances;
-    u64 tess_factor_memory_base;
-    AmdGpu::TessellationType tess_type;
-    AmdGpu::TessellationTopology tess_topology;
-    AmdGpu::TessellationPartitioning tess_partitioning;
-    u32 dynamic_hs;
-    // HACK
-    bool is_passthrough;
+    // Keeping these as runtime info for now, may be able to remove some if they are changing
+    // (but these should be const for a given program)
+    u32 num_input_cp;
+    u32 num_output_cp;
+    u32 num_patch_const;
+    u32 cp_stride;
+    u32 num_threads;
+    u32 tess_factor_stride;
+    u32 first_edge_tess_factor_index;
 
-    bool operator==(const HullRuntimeInfo& other) const noexcept {
-        return output_control_points == other.output_control_points;
-    }
+    auto operator<=>(const HullRuntimeInfo&) const noexcept = default;
 };
 
 static constexpr auto GsMaxOutputStreams = 4u;
