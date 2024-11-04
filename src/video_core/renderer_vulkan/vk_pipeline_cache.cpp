@@ -96,16 +96,13 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
     }
     case Stage::Hull: {
         BuildCommon(regs.hs_program);
-        info.hs_info.output_control_points = regs.ls_hs_config.hs_output_control_points.Value();
-        info.hs_info.input_control_points = regs.ls_hs_config.hs_input_control_points;
-        info.hs_info.num_patches = regs.ls_hs_config.num_patches;
-        // Suspicious about this in apparently "passthrough" hull shader. Probably not releva
-        info.hs_info.num_instances = regs.num_instances.NumInstances();
-        info.hs_info.tess_factor_memory_base = regs.vgt_tf_memory_base.MemoryBase();
-        info.hs_info.tess_type = regs.tess_config.type;
-        info.hs_info.tess_topology = regs.tess_config.topology;
-        info.hs_info.tess_partitioning = regs.tess_config.partitioning;
-        info.hs_info.dynamic_hs = regs.stage_enable.dynamic_hs.Value();
+        info.hs_info.num_output_cp = regs.hs_constants.num_output_cp;
+        info.hs_info.num_output_cp = regs.hs_constants.num_output_cp;
+        info.hs_info.num_patch_const = regs.hs_constants.num_patch_const;
+        info.hs_info.cp_stride = regs.hs_constants.cp_stride;
+        info.hs_info.num_threads = regs.hs_constants.num_threads;
+        info.hs_info.tess_factor_stride = regs.hs_constants.tess_factor_stride;
+        info.hs_info.first_edge_tess_factor_index = regs.hs_constants.first_edge_tess_factor_index;
         break;
     }
     case Stage::Export: {

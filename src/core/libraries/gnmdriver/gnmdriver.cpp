@@ -307,7 +307,8 @@ struct AscQueueInfo {
     u32 ring_size_dw;
 };
 static Common::SlotVector<AscQueueInfo> asc_queues{};
-static constexpr VAddr tessellation_factors_ring_addr = Core::SYSTEM_RESERVED_MAX - 0xFFFFFFF;
+// static constexpr VAddr tessellation_factors_ring_addr = Core::SYSTEM_RESERVED_MAX - 0xFFFFFFF;
+static constexpr VAddr tessellation_factors_ring_addr = 0xabcdef000000;
 
 static void ResetSubmissionLock(Platform::InterruptId irq) {
     std::unique_lock lock{m_submission};
@@ -1599,7 +1600,6 @@ s32 PS4_SYSV_ABI sceGnmSetGsShader(u32* cmdbuf, u32 size, const u32* gs_regs) {
 
 s32 PS4_SYSV_ABI sceGnmSetHsShader(u32* cmdbuf, u32 size, const u32* hs_regs, u32 param4) {
     LOG_TRACE(Lib_GnmDriver, "called");
-
     if (!cmdbuf || size < 0x1E) {
         return -1;
     }
@@ -1617,8 +1617,11 @@ s32 PS4_SYSV_ABI sceGnmSetHsShader(u32* cmdbuf, u32 size, const u32* hs_regs, u3
     cmdbuf = PM4CmdSetData::SetShReg(cmdbuf, 0x108u, hs_regs[0], 0u); // SPI_SHADER_PGM_LO_HS
     cmdbuf = PM4CmdSetData::SetShReg(cmdbuf, 0x10au, hs_regs[2],
                                      hs_regs[3]); // SPI_SHADER_PGM_RSRC1_HS/SPI_SHADER_PGM_RSRC2_HS
+    cmdbuf = PM4CmdSetData::SetShReg(cmdbuf, 0x11cu, hs_regs[4], hs_regs[5], hs_regs[6], hs_regs[7],
+                                     hs_regs[8], hs_regs[9], hs_regs[10], hs_regs[11], hs_regs[12],
+                                     hs_regs[13]); // TODO comment
     cmdbuf = PM4CmdSetData::SetContextReg(cmdbuf, 0x286u, hs_regs[5],
-                                          hs_regs[5]);                 // VGT_HOS_MAX_TESS_LEVEL
+                                          hs_regs[6]);                 // VGT_HOS_MAX_TESS_LEVEL
     cmdbuf = PM4CmdSetData::SetContextReg(cmdbuf, 0x2dbu, hs_regs[4]); // VGT_TF_PARAM
     cmdbuf = PM4CmdSetData::SetContextReg(cmdbuf, 0x2d6u, param4);     // VGT_LS_HS_CONFIG
 
