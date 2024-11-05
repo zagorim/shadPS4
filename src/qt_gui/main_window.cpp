@@ -685,6 +685,12 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
             QMessageBox::critical(this, tr("PKG ERROR"), QString::fromStdString(failreason));
             return;
         }
+        if (!psf.Open(pkg.sfo)) {
+            QMessageBox::critical(this, tr("PKG ERROR"),
+                                  "Could not read SFO. Check log for details");
+            return;
+        }
+        auto category = psf.GetString("CATEGORY");
         InstallDirSelect ids;
         ids.exec();
         auto game_install_dir = ids.getSelectedDirectory();
@@ -701,12 +707,6 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
             QMessageBox msgBox;
             msgBox.setWindowTitle(tr("PKG Extraction"));
 
-            if (!psf.Open(pkg.sfo)) {
-                QMessageBox::critical(this, tr("PKG ERROR"),
-                                      "Could not read SFO. Check log for details");
-                return;
-            }
-
             std::string content_id;
             if (auto value = psf.GetString("CONTENT_ID"); value.has_value()) {
                 content_id = std::string{*value};
@@ -721,7 +721,6 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
             QString addonDirPath;
             Common::FS::PathToQString(addonDirPath, addon_extract_path);
             QDir addon_dir(addonDirPath);
-            auto category = psf.GetString("CATEGORY");
 
             if (pkgType.contains("PATCH")) {
                 QString pkg_app_version;
@@ -814,9 +813,10 @@ void MainWindow::InstallDragDropPkg(std::filesystem::path file, int pkgNum, int 
             }
         } else {
             // Do nothing;
-            if (pkgType.contains("PATCH")) {
-                QMessageBox::information(this, tr("PKG Extraction"),
-                                         tr("PKG is a patch, please install the game first!"));
+            if (pkgType.contains("PATCH") || category == "ac") {
+                QMessageBox::information(
+                    this, tr("PKG Extraction"),
+                    tr("PKG is a patch or DLC, please install the game first!"));
                 return;
             }
             // what else?
