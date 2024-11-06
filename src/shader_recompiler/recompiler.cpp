@@ -32,7 +32,7 @@ IR::BlockList GenerateBlocks(const IR::AbstractSyntaxList& syntax_list) {
 }
 
 IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info,
-                             const RuntimeInfo& runtime_info, const Profile& profile) {
+                             RuntimeInfo& runtime_info, const Profile& profile) {
     // Ensure first instruction is expected.
     constexpr u32 token_mov_vcchi = 0xBEEB03FF;
     ASSERT_MSG(code[0] == token_mov_vcchi, "First instruction is not s_mov_b32 vcc_hi, #imm");
@@ -86,7 +86,6 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     // Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
     dumpMatchingIR("post_ssa");
     if (stage == Stage::Hull) {
-        dumpMatchingIR("pre_hull");
         Shader::Optimization::HullShaderTransform(program, runtime_info);
         dumpMatchingIR("post_hull");
     }

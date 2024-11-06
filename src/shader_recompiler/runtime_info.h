@@ -7,6 +7,7 @@
 #include <span>
 #include <boost/container/static_vector.hpp>
 #include "common/types.h"
+#include "shader_recompiler/frontend/hull_shader.h"
 #include "video_core/amdgpu/types.h"
 
 namespace Shader {
@@ -85,17 +86,35 @@ struct VertexRuntimeInfo {
 };
 
 struct HullRuntimeInfo {
-    // Keeping these as runtime info for now, may be able to remove some if they are changing
-    // (but these should be const for a given program)
-    u32 num_input_cp;
-    u32 num_output_cp;
-    u32 num_patch_const;
-    u32 cp_stride;
-    u32 num_threads;
-    u32 tess_factor_stride;
+    // from registers
+    u32 output_control_points;
+
+    // from tess constants buffer
+    u32 ls_stride;
+    u32 hs_cp_stride;
+    u32 hs_num_patch;
+    u32 hs_output_base;
+    u32 patch_const_size;
+    u32 patch_const_base;
+    u32 patch_output_size;
     u32 first_edge_tess_factor_index;
 
     auto operator<=>(const HullRuntimeInfo&) const noexcept = default;
+
+    bool IsPassthrough() {
+        return hs_output_base == 0;
+    };
+
+    void InitFromTessConstants(Shader::TessellationDataConstantBuffer& tess_constants) {
+        ls_stride = tess_constants.m_lsStride;
+        hs_cp_stride = tess_constants.m_hsCpStride;
+        hs_num_patch = tess_constants.m_hsNumPatch;
+        hs_output_base = tess_constants.m_hsOutputBase;
+        patch_const_size = tess_constants.m_patchConstSize;
+        patch_const_base = tess_constants.m_patchConstBase;
+        patch_output_size = tess_constants.m_patchOutputSize;
+        first_edge_tess_factor_index = tess_constants.m_firstEdgeTessFactorIndex;
+    }
 };
 
 static constexpr auto GsMaxOutputStreams = 4u;

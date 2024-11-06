@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include <any>
 #include <numeric>
 #include "shader_recompiler/ir/ir_emitter.h"
 #include "shader_recompiler/ir/program.h"
 
 // TODO delelte
-#include "common/config.h"
 #include "common/io_file.h"
 #include "common/path_util.h"
 
@@ -155,7 +153,6 @@ struct MatchInstObject : MatchObject<MatchInstObject<opcode>> {
         bool matched = true;
 
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            // TODO how to short circuit
             ((matched = matched && std::get<Is>(pattern).DoMatch(inst->Arg(Is))), ...);
         }(std::make_index_sequence<sizeof...(Args)>{});
 
@@ -172,17 +169,6 @@ auto MakeInstPattern(Args&&... args) {
     return MatchInstObject<opcode, Args...>(std::forward<Args>(args)...);
 }
 
-template <typename T, typename U, typename V>
-auto MakeIMadPattern(MatchObject<T>&& a, MatchObject<U>&& b, MatchObject<V>&& c) {
-    return MakeInstPattern<IR::Opcode::IAdd32>(
-        MakeInstPattern<IR::Opcode::IMul32>(
-            MakeInstPattern<IR::Opcode::BitFieldSExtract>(std::forward<MatchObject<T>>(a),
-                                                          MatchU32(0), MatchU32(24)),
-            MakeInstPattern<IR::Opcode::BitFieldSExtract>(std::forward<MatchObject<U>>(b),
-                                                          MatchU32(0), MatchU32(24))),
-        std::forward<MatchObject<V>>(c));
-}
-
 // Represent address as sum of products
 // Input control point:
 //     PrimitiveId * input_cp_stride * #cp_per_input_patch + index * input_cp_stride + (attr# * 16 +
@@ -195,89 +181,130 @@ auto MakeIMadPattern(MatchObject<T>&& a, MatchObject<U>&& b, MatchObject<V>&& c)
 //    + PrimitiveId * per_patch_output_stride + (attr# * 16 + component)
 
 // Sort terms left to right
-struct RingAddress {
-    enum class Region : u32 { InputCP, OutputCP, PatchOutput };
 
-    Region RegionKind() {
-        if (is_passthrough) {
-            DEBUG_ASSERT(region <= 1);
-            return region == 1 ? Region::PatchOutput : Region::InputCP;
+namespace {
+
+enum AttributeRegion { InputCP, OutputCP, PatchConst, Unknown };
+
+struct RingAddressInfo {
+    AttributeRegion region;
+    u32 attribute_byte_offset;
+    IR::Value control_point_index;
+};
+
+class Pass {
+public:
+    Pass(Info& info_, RuntimeInfo& runtime_info_) : info(info_), runtime_info(runtime_info_) {}
+
+    RingAddressInfo WalkRingAccess(IR::Inst* access) {
+        Reset();
+        RingAddressInfo address_info{};
+
+        IR::Value addr;
+        switch (access->GetOpcode()) {
+        case IR::Opcode::LoadSharedU32:
+        case IR::Opcode::LoadSharedU64:
+        case IR::Opcode::LoadSharedU128:
+        case IR::Opcode::WriteSharedU32:
+        case IR::Opcode::WriteSharedU64:
+        case IR::Opcode::WriteSharedU128:
+            addr = access->Arg(0);
+            break;
+        default:
+            UNREACHABLE();
         }
-        return Region(region);
-    };
-    IR::Value Index() {
-        return index;
-    };
-    bool HasSimpleControlPointIndex();
-    u32 AttributeByteOffset() {
-        return attribute_byte_offset;
-    };
 
-    void WalkRingAccess(IR::Inst* ring_access) {
-        ctx = {};
-        linear_products.clear();
-        terms.clear();
         linear_products.emplace_back();
-        IR::Value addr = ring_access->Arg(0);
         terms.emplace_back(addr);
         Visit(addr);
-        DEBUG_ASSERT(linear_products.size() == terms.size());
-        GatherInfo();
+
+        FindIndexInfo(address_info);
+
+        return address_info;
     }
 
 private:
-    struct Context {
-        bool within_mul{};
-    } ctx;
+    void Reset() {
+        within_mul = false;
+        terms.clear();
+        linear_products.clear();
+    }
+
+    void InitTessConstants(IR::ScalarReg ud_reg) {
+        if (tess_constants_initialized) {
+            ASSERT(ud_reg == info.tess_constants_ud_reg);
+            return;
+        }
+        // assume no indirection for now
+        info.tess_constants_ud_reg = ud_reg;
+        TessellationDataConstantBuffer tess_constants;
+        info.ReadTessConstantBuffer(tess_constants);
+        runtime_info.hs_info.InitFromTessConstants(tess_constants);
+
+        tess_constants_initialized = true;
+        return;
+    }
+
+    IR::Value TryReplaceTessConstantLoad(IR::Inst* read_const_buffer) {
+        IR::Value ud_reg_base;
+        IR::Value rv = IR::Value{read_const_buffer};
+        IR::Value handle = read_const_buffer->Arg(0);
+        IR::Value index = read_const_buffer->Arg(1);
+        IR::Value offset;
+        bool matched;
+
+        matched = MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(offset), MatchU32(0)).DoMatch(index);
+
+        if (!matched)
+            return rv;
+
+        matched = MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
+                      MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(ud_reg_base)),
+                      MatchIgnore(), MatchIgnore(), MatchIgnore())
+                      .DoMatch(handle);
+
+        // TODO handle indirection (ReadConst handle)
+        ASSERT(matched);
+        InitTessConstants(ud_reg_base.ScalarReg());
+
+        if (offset.U32() < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
+                               static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
+            IR::Attribute tess_constant_attr = static_cast<IR::Attribute>(
+                static_cast<u32>(IR::Attribute::TcsLsStride) + offset.U32());
+            rv = IR::Value(tess_constant_attr);
+
+            IR::IREmitter ir{*read_const_buffer->GetParent(),
+                             IR::Block::InstructionList::s_iterator_to(*read_const_buffer)};
+            IR::Value replacement;
+            if (rv.Attribute() == IR::Attribute::TcsOffChipTessellationFactorThreshold) {
+                replacement = ir.GetAttribute(rv.Attribute());
+            } else {
+                replacement = ir.GetAttributeU32(rv.Attribute());
+            }
+
+            read_const_buffer->ReplaceUsesWithAndRemove(replacement);
+        }
+
+        return rv;
+    }
 
     void Visit(IR::Value node) {
         IR::Value a, b, c;
 
-        struct MulScope {
-            Context saved_ctx;
-            Context& ctx;
-
-            MulScope(Context& ctx) : ctx(ctx), saved_ctx(ctx) {
-                saved_ctx.within_mul = true;
-                std::swap(ctx, saved_ctx);
-            }
-            ~MulScope() {
-                std::swap(ctx, saved_ctx);
-            }
-        };
-
-        if (MakeIMadPattern(MatchValue(a), MatchValue(b), MatchValue(c)).DoMatch(node)) {
-            // v_mad_i32_i24 _, a, b, c
-            {
-                MulScope _{ctx};
-                Visit(a);
-                Visit(b);
-            }
-
-            linear_products.emplace_back();
-            terms.emplace_back(c);
-            Visit(c);
-        } else if (MakeInstPattern<IR::Opcode::IMul32>(
-                       MakeInstPattern<IR::Opcode::BitFieldSExtract>(MatchValue(a), MatchU32(0),
-                                                                     MatchU32(24)),
-                       MakeInstPattern<IR::Opcode::BitFieldSExtract>(MatchValue(b), MatchU32(0),
-                                                                     MatchU32(24)))
-                       .DoMatch(node)) {
-            {
-                MulScope _{ctx};
-                Visit(a);
-                Visit(b);
-            }
-            // v_mul_i32_i24 _, a, b
+        if (MakeInstPattern<IR::Opcode::IMul32>(MatchValue(a), MatchValue(b)).DoMatch(node)) {
+            bool saved_within_mul = within_mul;
+            within_mul = true;
+            Visit(a);
+            Visit(b);
+            within_mul = saved_within_mul;
         } else if (MakeInstPattern<IR::Opcode::IAdd32>(MatchValue(a), MatchValue(b))
                        .DoMatch(node)) {
-            DEBUG_ASSERT(!ctx.within_mul);
-            // some add a + b
-            if (!ctx.within_mul) {
+            DEBUG_ASSERT(!within_mul);
+            if (!within_mul) {
                 terms.back() = a;
             }
             Visit(a);
-            if (!ctx.within_mul) {
+            if (within_mul) {
                 linear_products.emplace_back();
                 terms.emplace_back(b);
             }
@@ -286,11 +313,18 @@ private:
                        .DoMatch(node)) {
             linear_products.back().emplace_back(IR::Value(u32(2 << (b.U32() - 1))));
             Visit(a);
-        } else if (MakeInstPattern<IR::Opcode::ReadConstBuffer>(
-                       MatchIgnore(), MakeInstPattern<IR::Opcode::IAdd32>(MatchU32(0), MatchU32(2)))
+        } else if (!node.IsImmediate() &&
+                   node.TryInstRecursive()->GetOpcode() == IR::Opcode::ReadConstBuffer) {
+            IR::Value v = TryReplaceTessConstantLoad(node.InstRecursive());
+            linear_products.back().emplace_back(v);
+        } else if (MakeInstPattern<IR::Opcode::BitFieldSExtract>(MatchValue(a), MatchIgnore(),
+                                                                 MatchIgnore())
                        .DoMatch(node)) {
-            // #patches system value seems to be provided via V# at offset 2.
-            linear_products.back().emplace_back(IR::Value(IR::Attribute::TcsNumPatches));
+            Visit(a);
+        } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(MatchValue(a), MatchIgnore(),
+                                                                 MatchIgnore())
+                       .DoMatch(node)) {
+            Visit(a);
         } else if (MakeInstPattern<IR::Opcode::BitCastF32U32>(MatchValue(a)).DoMatch(node)) {
             return Visit(a);
         } else if (MakeInstPattern<IR::Opcode::BitCastU32F32>(MatchValue(a)).DoMatch(node)) {
@@ -300,25 +334,23 @@ private:
         }
     }
 
-    void GatherInfo() {
-        region = 0;
-        attribute_byte_offset = 0;
-        index = {};
+    void FindIndexInfo(RingAddressInfo& address_info) {
+        // infer which attribute base the address is indexing
+        // by how many addends are multiplied by TessellationDataConstantBuffer::m_hsNumPatch.
+        // Also handle m_hsOutputBase or m_patchConstBase
+        u32 region_count = 0;
 
         // Remove addends except for the attribute offset and possibly the
         // control point index calc
         boost::adaptors::filter(linear_products, [&](auto& term) {
             for (IR::Value& value : term) {
                 if (value.Type() == IR::Type::Attribute) {
-                    if (value.Attribute() == IR::Attribute::TcsNumPatches) {
-                        // Terms that multiply by #patches should be meant to add the size
-                        // of the input control point region or output control point region.
-                        // So by counting them, we can infer what region the address is in.
-                        // e.g. #patches * input_cp_stride * #cp_per_input_patch +
-                        // #patches * output_patch_stride + ... -> PerPatchRegion
-                        // #patches * input_cp_stride * #cp_per_input_patch + ... -> OutputCP
-                        ++region;
+                    if (value.Attribute() == IR::Attribute::TcsNumPatches ||
+                        value.Attribute() == IR::Attribute::TcsOutputBase) {
+                        ++region_count;
                         return false;
+                    } else if (value.Attribute() == IR::Attribute::TcsPatchConstBase) {
+                        region_count += 2;
                     } else if (value.Attribute() == IR::Attribute::PrimitiveId) {
                         return false;
                     }
@@ -332,44 +364,55 @@ private:
         // Look for some term with a dynamic index (should be the control point index)
         // Output writes: InvocationId
         // Input reads: arbitrary
-        // Output reads: ???
+        // Output reads: arbitrary
         int count = 0;
         for (auto i = 0; i < linear_products.size(); i++) {
             auto& term = linear_products[i];
             // Remember this as the index term
             if (std::any_of(term.begin(), term.end(),
                             [&](const IR::Value& v) { return !v.IsImmediate(); })) {
-                ASSERT_MSG(index.IsEmpty(),
+                ASSERT_MSG(address_info.control_point_index.IsEmpty(),
                            "more than one non-immediate term in address calculation");
-                index = terms[i];
+                // TODO add these together or smthn
+                address_info.control_point_index = terms[i];
             } else {
                 // Otherwise assume it contributes to the attribute
-                attribute_byte_offset +=
+                address_info.attribute_byte_offset +=
                     std::accumulate(term.begin(), term.end(), 0, [](u32 product, IR::Value& v) {
                         ASSERT(v.IsImmediate() && v.Type() == IR::Type::U32);
                         return product * v.U32();
                     });
             }
         }
+
+        if (region_count == 0) {
+            address_info.region = AttributeRegion::InputCP;
+        } else if (runtime_info.hs_info.IsPassthrough()) {
+            ASSERT(region_count <= 1);
+            address_info.region = AttributeRegion::PatchConst;
+        } else {
+            ASSERT(region_count <= 2);
+            address_info.region = AttributeRegion(region_count);
+        }
     }
 
-    u32 region;
+    Info& info;
+    RuntimeInfo& runtime_info;
 
-    u32 attribute_byte_offset;
-
-    bool is_passthrough; // TODO figure out how to deduce passthrough
-    IR::Value index;
+    bool tess_constants_initialized{};
+    bool within_mul{};
 
     // address addends, in original nested IR
     boost::container::small_vector<IR::Value, 4> terms;
-
     // Each element is a linear representation of each term.
     // linear_products[i][0] * ... * linear_products[i][linear_products[i].size() - 1] should
     // represent terms[i]
     boost::container::small_vector<boost::container::small_vector<IR::Value, 4>, 4> linear_products;
 };
 
-void HullShaderTransform(const IR::Program& program, const RuntimeInfo& runtime_info) {
+} // namespace
+
+void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
     auto dumpMatchingIR = [&](std::string phase) {
         std::string s = IR::DumpProgram(program);
         using namespace Common::FS;
@@ -383,52 +426,32 @@ void HullShaderTransform(const IR::Program& program, const RuntimeInfo& runtime_
         file.WriteString(s);
     };
 
-    // Replace with intrinsics for easier pattern matching
-    for (IR::Block* block : program.blocks) {
+    Pass pass(program.info, runtime_info);
 
+    // Replace the BFEs on V1 (packed with patch id and output cp id) for easier pattern matching
+    // TODO refactor
+    for (IR::Block* block : program.blocks) {
         for (auto it = block->Instructions().begin(); it != block->Instructions().end(); it++) {
             IR::Inst& inst = *it;
             const auto opcode = inst.GetOpcode();
-            switch (opcode) {
-            case IR::Opcode::BitFieldUExtract: {
-                if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
-                        MakeInstPattern<IR::Opcode::GetAttributeU32>(
-                            MatchAttribute(IR::Attribute::PackedHullInvocationInfo), MatchIgnore()),
-                        MatchU32(0), MatchU32(8))
-                        .DoMatch(IR::Value{&inst})) {
-                    IR::IREmitter emit(*block, it);
-                    IR::Value replacement = emit.GetAttributeU32(IR::Attribute::PrimitiveId);
-                    inst.ReplaceUsesWithAndRemove(replacement);
-                } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
-                               MakeInstPattern<IR::Opcode::GetAttributeU32>(
-                                   MatchAttribute(IR::Attribute::PackedHullInvocationInfo),
-                                   MatchIgnore()),
-                               MatchU32(8), MatchU32(5))
-                               .DoMatch(IR::Value{&inst})) {
-                    IR::IREmitter emit(*block, it);
-                    IR::Value replacement = emit.GetAttributeU32(IR::Attribute::InvocationId);
-                    inst.ReplaceUsesWithAndRemove(replacement);
-                }
-                break;
-            }
 
-            case IR::Opcode::BitFieldSExtract: {
-                IR::Value offset{};
-                if (MakeInstPattern<IR::Opcode::BitFieldSExtract>(
-                        MakeInstPattern<IR::Opcode::ReadConstBuffer>(
-                            MatchIgnore(),
-                            MakeInstPattern<IR::Opcode::IAdd32>(MatchU32(0), MatchU32(0))),
-                        MatchU32(19), MatchU32(2))
-                        .DoMatch(IR::Value{&inst})) {
-                    IR::IREmitter emit(*block, it);
-                    IR::Value replacement = emit.GetAttributeU32(IR::Attribute::TcsInputCpStride);
-                    inst.ReplaceUsesWithAndRemove(replacement);
-                }
-                break;
-            }
-
-            default:
-                break;
+            if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
+                    MakeInstPattern<IR::Opcode::GetAttributeU32>(
+                        MatchAttribute(IR::Attribute::PackedHullInvocationInfo), MatchIgnore()),
+                    MatchU32(0), MatchU32(8))
+                    .DoMatch(IR::Value{&inst})) {
+                IR::IREmitter emit(*block, it);
+                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::PrimitiveId);
+                inst.ReplaceUsesWithAndRemove(replacement);
+            } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
+                           MakeInstPattern<IR::Opcode::GetAttributeU32>(
+                               MatchAttribute(IR::Attribute::PackedHullInvocationInfo),
+                               MatchIgnore()),
+                           MatchU32(8), MatchU32(5))
+                           .DoMatch(IR::Value{&inst})) {
+                IR::IREmitter emit(*block, it);
+                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::InvocationId);
+                inst.ReplaceUsesWithAndRemove(replacement);
             }
         }
     }
@@ -472,12 +495,10 @@ void HullShaderTransform(const IR::Program& program, const RuntimeInfo& runtime_
                 }
                 break;
             }
-            case IR::Opcode::WriteSharedU32:
-            case IR::Opcode::WriteSharedU64:
-            case IR::Opcode::WriteSharedU128: {
-                RingAddress ring_address;
-                ring_address.WalkRingAccess(&inst);
 
+            // case IR::Opcode::WriteSharedU128: // TODO
+            case IR::Opcode::WriteSharedU32:
+            case IR::Opcode::WriteSharedU64: {
                 const u32 num_dwords = opcode == IR::Opcode::WriteSharedU32
                                            ? 1
                                            : (opcode == IR::Opcode::WriteSharedU64 ? 2 : 4);
@@ -490,44 +511,26 @@ void HullShaderTransform(const IR::Program& program, const RuntimeInfo& runtime_
                     return {IR::U32{prod->Arg(0)}, IR::U32{prod->Arg(1)}};
                 }();
 
-#if 0
-                const IR::Inst* ds_offset = inst.Arg(0).InstRecursive();
-                const u32 offset_dw = ds_offset->Arg(1).U32() >> 4; // should be >> 2?
-                IR::Inst* prod = ds_offset->Arg(0).TryInstRecursive();
-                ASSERT(prod && (prod->GetOpcode() == IR::Opcode::IAdd32 ||
-                                prod->GetOpcode() == IR::Opcode::IMul32));
-                if (prod->GetOpcode() == IR::Opcode::IAdd32) {
-                    prod = prod->Arg(0).TryInstRecursive();
-                    ASSERT(prod && prod->GetOpcode() == IR::Opcode::IMul32);
-                }
-                prod = prod->Arg(0).TryInstRecursive();
-                ASSERT(prod && prod->GetOpcode() == IR::Opcode::BitFieldSExtract &&
-                       prod->Arg(2).IsImmediate() && prod->Arg(2).U32() == 24);
-                prod = prod->Arg(0).TryInstRecursive();
-                ASSERT(prod && prod->GetOpcode() == IR::Opcode::BitFieldUExtract);
-                const u32 bit_pos = prod->Arg(1).U32();
-
-                ASSERT_MSG(bit_pos == 0 || bit_pos == 8, "Unknown bit extract pos {}", bit_pos);
-                const bool is_patch_const = bit_pos == 0;
-#endif
-
                 const auto SetOutput = [&ir](IR::U32 value, u32 offset_dw,
-                                             RingAddress::Region output_kind) {
+                                             AttributeRegion output_kind) {
                     const IR::F32 data = ir.BitCast<IR::F32, IR::U32>(value);
-                    if (output_kind == RingAddress::Region::OutputCP) {
+                    if (output_kind == AttributeRegion::OutputCP) {
                         const u32 param = offset_dw >> 2;
                         const u32 comp = offset_dw & 3;
                         ir.SetAttribute(IR::Attribute::Param0 + param, data, comp);
                     } else {
-                        assert(output_kind == RingAddress::Region::PatchOutput);
+                        assert(output_kind == AttributeRegion::PatchConst);
                         ir.SetPatch(IR::PatchGeneric(offset_dw), data);
                     }
                 };
 
-                u32 offset_dw = ring_address.AttributeByteOffset() >> 2;
-                SetOutput(data_lo, offset_dw, ring_address.RegionKind());
+                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
+                dumpMatchingIR("after_walk_ring_access");
+
+                u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                SetOutput(data_lo, offset_dw, address_info.region);
                 if (num_dwords > 1) {
-                    SetOutput(data_hi, offset_dw + 1, ring_address.RegionKind());
+                    SetOutput(data_hi, offset_dw + 1, address_info.region);
                 }
                 inst.Invalidate();
                 break;
@@ -543,6 +546,27 @@ void HullShaderTransform(const IR::Program& program, const RuntimeInfo& runtime_
                 break;
             }
         }
+    }
+
+    for (IR::Block* block : program.blocks) {
+        for (IR::Inst& inst : block->Instructions()) {
+            switch (inst.GetOpcode()) {
+            case IR::Opcode::LoadSharedU32:
+            case IR::Opcode::LoadSharedU64:
+            case IR::Opcode::LoadSharedU128:
+            case IR::Opcode::WriteSharedU32:
+            case IR::Opcode::WriteSharedU64:
+            case IR::Opcode::WriteSharedU128:
+                UNREACHABLE_MSG("Remaining DS instruction. Hull transform failed");
+            default:
+                break;
+            }
+        }
+    }
+
+    if (runtime_info.hs_info.IsPassthrough()) {
+        // TODO:
+        // copy input attributes to outputs
     }
 }
 

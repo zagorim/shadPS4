@@ -79,9 +79,18 @@ enum class Attribute : u64 {
     TessellationEvaluationPointU = 82,
     TessellationEvaluationPointV = 83,
     PackedHullInvocationInfo =
-        84,             // PrimitiveId (patch id) and InvocationId (output control point id)
-    TcsNumPatches = 85, // Figure this out, just marking it for now for pattern matching
-    TcsInputCpStride = 86,
+        84, // PrimitiveId (patch id) and InvocationId (output control point id)
+    // Probably don't need all these.
+    // Most should be dead after hull shader transform
+    TcsLsStride = 85,
+    TcsCpStride = 86,
+    TcsNumPatches = 87,
+    TcsOutputBase = 88,
+    TcsPatchConstSize = 89,
+    TcsPatchConstBase = 90,
+    TcsPatchOutputSize = 91,
+    TcsOffChipTessellationFactorThreshold = 92,
+    TcsFirstEdgeTessFactorIndex = 93,
     Max,
 };
 
