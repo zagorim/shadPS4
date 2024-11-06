@@ -1114,6 +1114,8 @@ struct Liverpool {
             ShaderProgram es_program;
             INSERT_PADDING_WORDS(0x2C);
             ShaderProgram hs_program;
+            // TODO delete. These don't actually correspond to real registers, but I'll stash them
+            // here to debug
             HsStageRegisters hs_registers;
             HsConstants hs_constants;
             INSERT_PADDING_WORDS(0x2D48 - 0x2d08 - 20 - 3 - 7);

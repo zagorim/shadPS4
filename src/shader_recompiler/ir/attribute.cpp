@@ -118,18 +118,32 @@ std::string NameOf(Attribute attribute) {
         return "LocalInvocationIndex";
     case Attribute::InvocationId:
         return "InvocationId";
-    case Attribute::PackedHullInvocationInfo:
-        return "PackedHullInvocationInfo";
     case Attribute::PatchVertices:
         return "PatchVertices";
     case Attribute::TessellationEvaluationPointU:
         return "TessellationEvaluationPointU";
     case Attribute::TessellationEvaluationPointV:
         return "TessellationEvaluationPointV";
+    case Attribute::PackedHullInvocationInfo:
+        return "PackedHullInvocationInfo";
+    case Attribute::TcsLsStride:
+        return "TcsLsStride";
+    case Attribute::TcsCpStride:
+        return "TcsCpStride";
     case Attribute::TcsNumPatches:
-        return "TcsInputMulA";
-    case Attribute::TcsInputCpStride:
-        return "TcsInputMulB";
+        return "TcsNumPatches";
+    case Attribute::TcsOutputBase:
+        return "TcsOutputBase";
+    case Attribute::TcsPatchConstSize:
+        return "TcsPatchConstSize";
+    case Attribute::TcsPatchConstBase:
+        return "TcsPatchConstBase";
+    case Attribute::TcsPatchOutputSize:
+        return "TcsPatchOutputSize";
+    case Attribute::TcsOffChipTessellationFactorThreshold:
+        return "TcsOffChipTessellationFactorThreshold";
+    case Attribute::TcsFirstEdgeTessFactorIndex:
+        return "TcsFirstEdgeTessFactorIndex";
     default:
         break;
     }
