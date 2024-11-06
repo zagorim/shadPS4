@@ -11,6 +11,7 @@
 #include "common/types.h"
 #include "shader_recompiler/backend/bindings.h"
 #include "shader_recompiler/frontend/copy_shader.h"
+#include "shader_recompiler/frontend/hull_shader.h"
 #include "shader_recompiler/ir/attribute.h"
 #include "shader_recompiler/ir/passes/srt.h"
 #include "shader_recompiler/ir/reg.h"
@@ -191,6 +192,9 @@ struct Info {
     PersistentSrtInfo srt_info;
     std::vector<u32> flattened_ud_buf;
 
+    // TODO handle indirection
+    IR::ScalarReg tess_constants_ud_reg = IR::ScalarReg::Max;
+
     std::span<const u32> user_data;
     Stage stage;
     LogicalStage l_stage;
@@ -277,16 +281,14 @@ struct Info {
         }
     }
 
-    // Hack
-    bool isPassthroughTcs() {
-        static boost::container::vector<u64> passthrough_hashes = {
-            0xbc234799 /* passthrough */,       0x8453cd1c /* passthrough */,
-            0xd67db0ef /* passthrough */,       0x34121ac6 /* passthrough*/,
-            0xa26750c1 /* passthrough, warp */, 0xbb88db5f /* passthrough */,
-            0x90c6fb05 /* passthrough */,       0x627ac5b9 /* ayyylmao*, passthrough */,
-        };
-
-        return std::ranges::contains(passthrough_hashes, pgm_hash);
+    void ReadTessConstantBuffer(TessellationDataConstantBuffer& tess_constants) {
+        ASSERT(tess_constants_ud_reg != IR::ScalarReg::Max);
+        auto buf = ReadUdReg<AmdGpu::Buffer>(static_cast<u32>(IR::ScalarReg::Max),
+                                             static_cast<u32>(tess_constants_ud_reg));
+        VAddr tess_constants_addr = buf.base_address;
+        memcpy(&tess_constants,
+               reinterpret_cast<TessellationDataConstantBuffer*>(tess_constants_addr),
+               sizeof(tess_constants));
     }
 };
 

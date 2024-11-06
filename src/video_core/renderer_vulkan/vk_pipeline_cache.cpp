@@ -96,13 +96,8 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
     }
     case Stage::Hull: {
         BuildCommon(regs.hs_program);
-        info.hs_info.num_output_cp = regs.hs_constants.num_output_cp;
-        info.hs_info.num_output_cp = regs.hs_constants.num_output_cp;
-        info.hs_info.num_patch_const = regs.hs_constants.num_patch_const;
-        info.hs_info.cp_stride = regs.hs_constants.cp_stride;
-        info.hs_info.num_threads = regs.hs_constants.num_threads;
-        info.hs_info.tess_factor_stride = regs.hs_constants.tess_factor_stride;
-        info.hs_info.first_edge_tess_factor_index = regs.hs_constants.first_edge_tess_factor_index;
+        info.hs_info.output_control_points = regs.ls_hs_config.hs_output_control_points.Value();
+        // We need to initialize most hs_info fields after finding the V# with tess constants
         break;
     }
     case Stage::Export: {
@@ -448,8 +443,7 @@ bool PipelineCache::RefreshComputeKey() {
     return true;
 }
 
-vk::ShaderModule PipelineCache::CompileModule(Shader::Info& info,
-                                              const Shader::RuntimeInfo& runtime_info,
+vk::ShaderModule PipelineCache::CompileModule(Shader::Info& info, Shader::RuntimeInfo& runtime_info,
                                               std::span<const u32> code, size_t perm_idx,
                                               Shader::Backend::Bindings& binding) {
     LOG_INFO(Render_Vulkan, "Compiling {} shader {:#x} {}", info.stage, info.pgm_hash,
@@ -469,7 +463,7 @@ vk::ShaderModule PipelineCache::CompileModule(Shader::Info& info,
 PipelineCache::Result PipelineCache::GetProgram(Stage stage, LogicalStage l_stage,
                                                 Shader::ShaderParams params,
                                                 Shader::Backend::Bindings& binding) {
-    const auto runtime_info = BuildRuntimeInfo(stage, l_stage);
+    auto runtime_info = BuildRuntimeInfo(stage, l_stage);
     auto [it_pgm, new_program] = program_cache.try_emplace(params.hash);
     if (new_program) {
         Program* program = program_pool.Create(stage, l_stage, params);
@@ -484,6 +478,10 @@ PipelineCache::Result PipelineCache::GetProgram(Stage stage, LogicalStage l_stag
     Program* program = it_pgm->second;
     auto& info = program->info;
     info.RefreshFlatBuf();
+    if (l_stage == LogicalStage::TessellationControl) {
+        Shader::TessellationDataConstantBuffer tess_constants;
+        info.ReadTessConstantBuffer(tess_constants);
+    }
     const auto spec = Shader::StageSpecialization(info, runtime_info, binding);
     size_t perm_idx = program->modules.size();
     vk::ShaderModule module{};
