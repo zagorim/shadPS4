@@ -7,7 +7,7 @@
 #include <span>
 #include <boost/container/static_vector.hpp>
 #include "common/types.h"
-#include "shader_recompiler/frontend/hull_shader.h"
+#include "shader_recompiler/frontend/tessellation.h"
 #include "video_core/amdgpu/types.h"
 
 namespace Shader {
@@ -74,14 +74,21 @@ struct VertexRuntimeInfo {
     u32 num_outputs;
     std::array<VsOutputMap, 3> outputs;
     bool emulate_depth_negative_one_to_one{};
+    // Domain
     AmdGpu::TessellationType tess_type;
     AmdGpu::TessellationTopology tess_topology;
     AmdGpu::TessellationPartitioning tess_partitioning;
+    u32 hs_output_cp_stride{};
 
     bool operator==(const VertexRuntimeInfo& other) const noexcept {
         return emulate_depth_negative_one_to_one == other.emulate_depth_negative_one_to_one &&
                tess_type == other.tess_type && tess_topology == other.tess_topology &&
-               tess_partitioning == other.tess_partitioning;
+               tess_partitioning == other.tess_partitioning &&
+               hs_output_cp_stride == other.hs_output_cp_stride;
+    }
+
+    void InitFromTessConstants(Shader::TessellationDataConstantBuffer& tess_constants) {
+        hs_output_cp_stride = tess_constants.m_hsCpStride;
     }
 };
 

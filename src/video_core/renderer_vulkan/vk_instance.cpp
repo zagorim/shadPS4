@@ -325,6 +325,7 @@ bool Instance::CreateDevice() {
                 .imageCubeArray = features.imageCubeArray,
                 .independentBlend = features.independentBlend,
                 .geometryShader = features.geometryShader,
+                .tessellationShader = features.tessellationShader,
                 .logicOp = features.logicOp,
                 .depthBiasClamp = features.depthBiasClamp,
                 .fillModeNonSolid = features.fillModeNonSolid,
@@ -374,6 +375,9 @@ bool Instance::CreateDevice() {
         },
         vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT{
             .extendedDynamicState = true,
+        },
+        vk::PhysicalDeviceExtendedDynamicState2FeaturesEXT{
+            .extendedDynamicState2PatchControlPoints = true,
         },
         vk::PhysicalDeviceExtendedDynamicState3FeaturesEXT{
             .extendedDynamicState3ColorWriteMask = true,
