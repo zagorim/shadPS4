@@ -96,7 +96,12 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
     }
     case Stage::Hull: {
         BuildCommon(regs.hs_program);
-        info.hs_info.output_control_points = regs.ls_hs_config.hs_output_control_points.Value();
+        // TODO: ls_hs_config.output_control_points seems to be == 1 when doing passthrough
+        // instead of the real number which matches the input patch topology
+        // info.hs_info.output_control_points = regs.ls_hs_config.hs_output_control_points.Value();
+
+        // TODO dont rely on HullStateConstants
+        info.hs_info.output_control_points = regs.hs_constants.num_output_cp;
         // We need to initialize most hs_info fields after finding the V# with tess constants
         break;
     }
@@ -115,6 +120,7 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
             info.vs_info.tess_type = regs.tess_config.type;
             info.vs_info.tess_topology = regs.tess_config.topology;
             info.vs_info.tess_partitioning = regs.tess_config.partitioning;
+            info.vs_info.hs_output_cp_stride;
         }
         break;
     }
@@ -478,9 +484,14 @@ PipelineCache::Result PipelineCache::GetProgram(Stage stage, LogicalStage l_stag
     Program* program = it_pgm->second;
     auto& info = program->info;
     info.RefreshFlatBuf();
-    if (l_stage == LogicalStage::TessellationControl) {
+    if (l_stage == LogicalStage::TessellationControl || l_stage == LogicalStage::TessellationEval) {
         Shader::TessellationDataConstantBuffer tess_constants;
         info.ReadTessConstantBuffer(tess_constants);
+        if (l_stage == LogicalStage::TessellationControl) {
+            runtime_info.hs_info.InitFromTessConstants(tess_constants);
+        } else {
+            runtime_info.vs_info.InitFromTessConstants(tess_constants);
+        }
     }
     const auto spec = Shader::StageSpecialization(info, runtime_info, binding);
     size_t perm_idx = program->modules.size();
