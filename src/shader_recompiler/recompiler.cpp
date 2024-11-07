@@ -81,6 +81,8 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
         }
     };
 
+    dumpMatchingIR("init");
+
     Shader::Optimization::SsaRewritePass(program.post_order_blocks);
     Shader::Optimization::IdentityRemovalPass(program.blocks);
     // Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
@@ -88,6 +90,9 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     if (stage == Stage::Hull) {
         Shader::Optimization::HullShaderTransform(program, runtime_info);
         dumpMatchingIR("post_hull");
+    } else if (info.l_stage == LogicalStage::TessellationEval) {
+        Shader::Optimization::DomainShaderTransform(program, runtime_info);
+        dumpMatchingIR("post_domain");
     }
     Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
     dumpMatchingIR("pre_ring");
@@ -102,6 +107,7 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     Shader::Optimization::IdentityRemovalPass(program.blocks);
     Shader::Optimization::DeadCodeEliminationPass(program);
     Shader::Optimization::CollectShaderInfoPass(program);
+    dumpMatchingIR("final");
 
     return program;
 }

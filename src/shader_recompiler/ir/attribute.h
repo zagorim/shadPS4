@@ -102,6 +102,11 @@ constexpr bool IsPosition(Attribute attribute) noexcept {
     return attribute >= Attribute::Position0 && attribute <= Attribute::Position3;
 }
 
+constexpr bool IsTessCoord(Attribute attribute) noexcept {
+    return attribute >= Attribute::TessellationEvaluationPointU &&
+           attribute <= Attribute::TessellationEvaluationPointV;
+}
+
 constexpr bool IsParam(Attribute attribute) noexcept {
     return attribute >= Attribute::Param0 && attribute <= Attribute::Param31;
 }

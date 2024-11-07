@@ -18,5 +18,7 @@ void CollectShaderInfoPass(IR::Program& program);
 void LowerSharedMemToRegisters(IR::Program& program);
 void RingAccessElimination(const IR::Program& program, const RuntimeInfo& runtime_info);
 void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info);
+// TODO probably refactor this into RingAccessElimination
+void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info);
 
 } // namespace Shader::Optimization

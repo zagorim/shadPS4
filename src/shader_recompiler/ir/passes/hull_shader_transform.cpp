@@ -187,9 +187,9 @@ namespace {
 enum AttributeRegion { InputCP, OutputCP, PatchConst, Unknown };
 
 struct RingAddressInfo {
-    AttributeRegion region;
-    u32 attribute_byte_offset;
-    IR::Value control_point_index;
+    AttributeRegion region{};
+    u32 attribute_byte_offset{};
+    IR::Value control_point_offset{};
 };
 
 class Pass {
@@ -214,8 +214,7 @@ public:
             UNREACHABLE();
         }
 
-        linear_products.emplace_back();
-        terms.emplace_back(addr);
+        products.emplace_back(addr);
         Visit(addr);
 
         FindIndexInfo(address_info);
@@ -223,11 +222,36 @@ public:
         return address_info;
     }
 
+    void ReplaceAttributes(IR::Program& program) {
+        for (IR::Block* block : program.blocks) {
+            for (IR::Inst& inst : block->Instructions()) {
+                if (inst.GetOpcode() == IR::Opcode::GetAttributeU32) {
+                    switch (inst.Arg(0).Attribute()) {
+                    case IR::Attribute::TcsLsStride:
+                        ASSERT(info.l_stage == LogicalStage::TessellationControl);
+                        inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_lsStride));
+                        break;
+                    case IR::Attribute::TcsCpStride:
+                        inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_hsCpStride));
+                        break;
+                    case IR::Attribute::TcsNumPatches:
+                    case IR::Attribute::TcsOutputBase:
+                    case IR::Attribute::TcsPatchConstSize:
+                    case IR::Attribute::TcsPatchConstBase:
+                    case IR::Attribute::TcsPatchOutputSize:
+                    case IR::Attribute::TcsFirstEdgeTessFactorIndex:
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
 private:
     void Reset() {
         within_mul = false;
-        terms.clear();
-        linear_products.clear();
+        products.clear();
     }
 
     void InitTessConstants(IR::ScalarReg ud_reg) {
@@ -237,9 +261,12 @@ private:
         }
         // assume no indirection for now
         info.tess_constants_ud_reg = ud_reg;
-        TessellationDataConstantBuffer tess_constants;
         info.ReadTessConstantBuffer(tess_constants);
-        runtime_info.hs_info.InitFromTessConstants(tess_constants);
+        if (info.l_stage == LogicalStage::TessellationControl) {
+            runtime_info.hs_info.InitFromTessConstants(tess_constants);
+        } else {
+            runtime_info.vs_info.InitFromTessConstants(tess_constants);
+        }
 
         tess_constants_initialized = true;
         return;
@@ -282,9 +309,13 @@ private:
                 replacement = ir.GetAttributeU32(rv.Attribute());
             }
 
+            if (IR::Value{read_const_buffer} == products.back().as_nested_value) {
+                products.back().as_nested_value = replacement;
+            }
             read_const_buffer->ReplaceUsesWithAndRemove(replacement);
         }
 
+        // Return attribute number unwrapped from GetAttribute inst
         return rv;
     }
 
@@ -301,22 +332,24 @@ private:
                        .DoMatch(node)) {
             DEBUG_ASSERT(!within_mul);
             if (!within_mul) {
-                terms.back() = a;
+                products.back().as_nested_value = a;
             }
             Visit(a);
-            if (within_mul) {
-                linear_products.emplace_back();
-                terms.emplace_back(b);
+            if (!within_mul) {
+                products.emplace_back(b);
             }
             Visit(b);
         } else if (MakeInstPattern<IR::Opcode::ShiftLeftLogical32>(MatchValue(a), MatchImm(b))
                        .DoMatch(node)) {
-            linear_products.back().emplace_back(IR::Value(u32(2 << (b.U32() - 1))));
+            products.back().as_factors.emplace_back(IR::Value(u32(2 << (b.U32() - 1))));
             Visit(a);
         } else if (!node.IsImmediate() &&
                    node.TryInstRecursive()->GetOpcode() == IR::Opcode::ReadConstBuffer) {
             IR::Value v = TryReplaceTessConstantLoad(node.InstRecursive());
-            linear_products.back().emplace_back(v);
+            products.back().as_factors.emplace_back(v);
+        } else if (MakeInstPattern<IR::Opcode::GetAttributeU32>(MatchValue(a), MatchU32(0))
+                       .DoMatch(node)) {
+            products.back().as_factors.emplace_back(a);
         } else if (MakeInstPattern<IR::Opcode::BitFieldSExtract>(MatchValue(a), MatchIgnore(),
                                                                  MatchIgnore())
                        .DoMatch(node)) {
@@ -330,7 +363,7 @@ private:
         } else if (MakeInstPattern<IR::Opcode::BitCastU32F32>(MatchValue(a)).DoMatch(node)) {
             return Visit(a);
         } else {
-            linear_products.back().emplace_back(node);
+            products.back().as_factors.emplace_back(node);
         }
     }
 
@@ -342,43 +375,38 @@ private:
 
         // Remove addends except for the attribute offset and possibly the
         // control point index calc
-        boost::adaptors::filter(linear_products, [&](auto& term) {
-            for (IR::Value& value : term) {
+        std::erase_if(products, [&](Product& p) {
+            for (IR::Value& value : p.as_factors) {
                 if (value.Type() == IR::Type::Attribute) {
                     if (value.Attribute() == IR::Attribute::TcsNumPatches ||
                         value.Attribute() == IR::Attribute::TcsOutputBase) {
                         ++region_count;
-                        return false;
+                        return true;
                     } else if (value.Attribute() == IR::Attribute::TcsPatchConstBase) {
                         region_count += 2;
+                        return true;
                     } else if (value.Attribute() == IR::Attribute::PrimitiveId) {
-                        return false;
+                        return true;
                     }
                 }
             }
-            return true;
+            return false;
         });
 
-        // For now assume we don't have any Output attribute reads
-
         // Look for some term with a dynamic index (should be the control point index)
-        // Output writes: InvocationId
-        // Input reads: arbitrary
-        // Output reads: arbitrary
-        int count = 0;
-        for (auto i = 0; i < linear_products.size(); i++) {
-            auto& term = linear_products[i];
+        for (auto i = 0; i < products.size(); i++) {
+            auto& factors = products[i].as_factors;
             // Remember this as the index term
-            if (std::any_of(term.begin(), term.end(),
-                            [&](const IR::Value& v) { return !v.IsImmediate(); })) {
-                ASSERT_MSG(address_info.control_point_index.IsEmpty(),
-                           "more than one non-immediate term in address calculation");
-                // TODO add these together or smthn
-                address_info.control_point_index = terms[i];
+            if (std::any_of(factors.begin(), factors.end(), [&](const IR::Value& v) {
+                    return !v.IsImmediate() || v.Type() == IR::Type::Attribute;
+                })) {
+                ASSERT_MSG(address_info.control_point_offset.IsEmpty(),
+                           "unhandled: more than one non-immediate term in address calculation");
+                address_info.control_point_offset = products[i].as_nested_value;
             } else {
                 // Otherwise assume it contributes to the attribute
-                address_info.attribute_byte_offset +=
-                    std::accumulate(term.begin(), term.end(), 0, [](u32 product, IR::Value& v) {
+                address_info.attribute_byte_offset += std::accumulate(
+                    factors.begin(), factors.end(), 1, [](u32 product, IR::Value& v) {
                         ASSERT(v.IsImmediate() && v.Type() == IR::Type::U32);
                         return product * v.U32();
                     });
@@ -387,46 +415,62 @@ private:
 
         if (region_count == 0) {
             address_info.region = AttributeRegion::InputCP;
-        } else if (runtime_info.hs_info.IsPassthrough()) {
+        } else if (info.l_stage == LogicalStage::TessellationControl &&
+                   runtime_info.hs_info.IsPassthrough()) {
             ASSERT(region_count <= 1);
             address_info.region = AttributeRegion::PatchConst;
         } else {
             ASSERT(region_count <= 2);
             address_info.region = AttributeRegion(region_count);
         }
+
+        if (address_info.control_point_offset.IsEmpty()) {
+            address_info.control_point_offset = IR::Value(u32(0));
+        }
     }
 
     Info& info;
     RuntimeInfo& runtime_info;
 
+    TessellationDataConstantBuffer tess_constants;
     bool tess_constants_initialized{};
     bool within_mul{};
 
-    // address addends, in original nested IR
-    boost::container::small_vector<IR::Value, 4> terms;
-    // Each element is a linear representation of each term.
-    // linear_products[i][0] * ... * linear_products[i][linear_products[i].size() - 1] should
-    // represent terms[i]
-    boost::container::small_vector<boost::container::small_vector<IR::Value, 4>, 4> linear_products;
+    // One product in the sum of products making up an address
+    struct Product {
+        Product(IR::Value val_) : as_nested_value(val_), as_factors() {}
+        Product(const Product& other) = default;
+        ~Product() = default;
+
+        // IR value used as an addend in address calc
+        IR::Value as_nested_value;
+        // all the leaves that feed the multiplication, linear
+        // TODO small_vector
+        // boost::container::small_vector<IR::Value, 4> as_factors;
+        std::vector<IR::Value> as_factors;
+    };
+
+    std::vector<Product> products;
 };
 
 } // namespace
 
-void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
-    auto dumpMatchingIR = [&](std::string phase) {
-        std::string s = IR::DumpProgram(program);
-        using namespace Common::FS;
-        const auto dump_dir = GetUserPath(PathType::ShaderDir) / "dumps";
-        if (!std::filesystem::exists(dump_dir)) {
-            std::filesystem::create_directories(dump_dir);
-        }
-        const auto filename =
-            fmt::format("{}_{:#018x}.{}.ir.txt", program.info.stage, program.info.pgm_hash, phase);
-        const auto file = IOFile{dump_dir / filename, FileAccessMode::Write};
-        file.WriteString(s);
-    };
+static void DumpIR(IR::Program& program, std::string phase) {
+    std::string s = IR::DumpProgram(program);
+    using namespace Common::FS;
+    const auto dump_dir = GetUserPath(PathType::ShaderDir) / "dumps";
+    if (!std::filesystem::exists(dump_dir)) {
+        std::filesystem::create_directories(dump_dir);
+    }
+    const auto filename =
+        fmt::format("{}_{:#018x}.{}.ir.txt", program.info.stage, program.info.pgm_hash, phase);
+    const auto file = IOFile{dump_dir / filename, FileAccessMode::Write};
+    file.WriteString(s);
+};
 
-    Pass pass(program.info, runtime_info);
+void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
+    Info& info = program.info;
+    Pass pass(info, runtime_info);
 
     // Replace the BFEs on V1 (packed with patch id and output cp id) for easier pattern matching
     // TODO refactor
@@ -455,8 +499,6 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             }
         }
     }
-
-    dumpMatchingIR("mid_hull_tranform");
 
     for (IR::Block* block : program.blocks) {
         for (IR::Inst& inst : block->Instructions()) {
@@ -499,6 +541,8 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             // case IR::Opcode::WriteSharedU128: // TODO
             case IR::Opcode::WriteSharedU32:
             case IR::Opcode::WriteSharedU64: {
+                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
+
                 const u32 num_dwords = opcode == IR::Opcode::WriteSharedU32
                                            ? 1
                                            : (opcode == IR::Opcode::WriteSharedU64 ? 2 : 4);
@@ -511,12 +555,13 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                     return {IR::U32{prod->Arg(0)}, IR::U32{prod->Arg(1)}};
                 }();
 
-                const auto SetOutput = [&ir](IR::U32 value, u32 offset_dw,
-                                             AttributeRegion output_kind) {
+                const auto SetOutput = [&](IR::U32 value, u32 offset_dw,
+                                           AttributeRegion output_kind) {
                     const IR::F32 data = ir.BitCast<IR::F32, IR::U32>(value);
                     if (output_kind == AttributeRegion::OutputCP) {
                         const u32 param = offset_dw >> 2;
                         const u32 comp = offset_dw & 3;
+                        // Invocation ID array index is implicit, handled by SPIRV backend
                         ir.SetAttribute(IR::Attribute::Param0 + param, data, comp);
                     } else {
                         assert(output_kind == AttributeRegion::PatchConst);
@@ -524,15 +569,14 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                     }
                 };
 
-                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
-                dumpMatchingIR("after_walk_ring_access");
-
                 u32 offset_dw = address_info.attribute_byte_offset >> 2;
                 SetOutput(data_lo, offset_dw, address_info.region);
                 if (num_dwords > 1) {
+                    // TODO handle WriteSharedU128
                     SetOutput(data_hi, offset_dw + 1, address_info.region);
                 }
                 inst.Invalidate();
+
                 break;
             }
 
@@ -564,10 +608,94 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
         }
     }
 
+    pass.ReplaceAttributes(program);
+
     if (runtime_info.hs_info.IsPassthrough()) {
-        // TODO:
-        // copy input attributes to outputs
+        // Copy input attributes to output attributes, indexed by InvocationID
+        // Passthrough should imply that input and output patches have same number of vertices
+        IR::Block* entry_block = *program.blocks.begin();
+        auto it = std::ranges::find_if(entry_block->Instructions(), [](IR::Inst& inst) {
+            return inst.GetOpcode() == IR::Opcode::Prologue;
+        });
+        ASSERT(it != entry_block->end());
+        ++it;
+        IR::IREmitter ir{*entry_block, it};
+
+        ASSERT(runtime_info.hs_info.ls_stride % 16 == 0);
+        u32 num_attributes = runtime_info.hs_info.ls_stride / 16;
+        const auto invocation_id = ir.GetAttributeU32(IR::Attribute::InvocationId);
+        for (u32 i = 0; i < num_attributes; i++) {
+            for (u32 j = 0; j < 4; j++) {
+                const auto input_attr =
+                    ir.GetAttribute(IR::Attribute::Param0 + i, j, invocation_id);
+                // InvocationId is implicit index for output control point writes
+                ir.SetAttribute(IR::Attribute::Param0 + i, input_attr, j);
+            }
+        }
     }
+}
+
+// TODO refactor
+void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
+    Info& info = program.info;
+    Pass pass(info, runtime_info);
+
+    for (IR::Block* block : program.blocks) {
+        for (IR::Inst& inst : block->Instructions()) {
+            IR::IREmitter ir{*block, IR::Block::InstructionList::s_iterator_to(inst)};
+            const auto opcode = inst.GetOpcode();
+            switch (inst.GetOpcode()) {
+            case IR::Opcode::LoadSharedU32: {
+                // case IR::Opcode::LoadSharedU64:
+                // case IR::Opcode::LoadSharedU128: // TODO
+                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
+
+                ASSERT(address_info.region == AttributeRegion::OutputCP ||
+                       address_info.region == AttributeRegion::PatchConst);
+                switch (address_info.region) {
+                case AttributeRegion::OutputCP: {
+                    u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                    const u32 param = offset_dw >> 2;
+                    const u32 comp = offset_dw & 3;
+                    IR::Value control_point_index =
+                        ir.IDiv(IR::U32{address_info.control_point_offset},
+                                ir.Imm32(runtime_info.vs_info.hs_output_cp_stride));
+                    IR::Value get_attrib =
+                        ir.GetAttribute(IR::Attribute::Param0 + param, comp, control_point_index);
+                    get_attrib = ir.BitCast<IR::U32>(IR::F32{get_attrib});
+                    inst.ReplaceUsesWithAndRemove(get_attrib);
+                    DumpIR(program, "after_walk_domain");
+                    break;
+                }
+                case AttributeRegion::PatchConst:
+                    break;
+                default:
+                    break;
+                }
+
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
+
+    for (IR::Block* block : program.blocks) {
+        for (IR::Inst& inst : block->Instructions()) {
+            switch (inst.GetOpcode()) {
+            case IR::Opcode::LoadSharedU32:
+            case IR::Opcode::LoadSharedU64:
+            case IR::Opcode::LoadSharedU128:
+                DumpIR(program, "post_domain");
+                UNREACHABLE_MSG("Remaining DS instruction. Domain transform failed");
+            default:
+                break;
+            }
+        }
+    }
+
+    pass.ReplaceAttributes(program);
 }
 
 } // namespace Shader::Optimization
