@@ -10,6 +10,19 @@
 
 namespace Shader::Optimization {
 
+static void DumpIR(IR::Program& program, std::string phase) {
+    std::string s = IR::DumpProgram(program);
+    using namespace Common::FS;
+    const auto dump_dir = GetUserPath(PathType::ShaderDir) / "dumps";
+    if (!std::filesystem::exists(dump_dir)) {
+        std::filesystem::create_directories(dump_dir);
+    }
+    const auto filename =
+        fmt::format("{}_{:#018x}.{}.ir.txt", program.info.stage, program.info.pgm_hash, phase);
+    const auto file = IOFile{dump_dir / filename, FileAccessMode::Write};
+    file.WriteString(s);
+};
+
 /**
  * Tessellation shaders pass outputs to the next shader using LDS.
  * The Hull shader stage receives input control points stored in LDS.
@@ -169,6 +182,15 @@ auto MakeInstPattern(Args&&... args) {
     return MatchInstObject<opcode, Args...>(std::forward<Args>(args)...);
 }
 
+struct MatchFoldImm : MatchObject<MatchFoldImm> {
+    MatchFoldImm(IR::Value& v) : return_val(v) {}
+
+    inline bool DoMatch(IR::Value v);
+
+private:
+    IR::Value& return_val;
+};
+
 // Represent address as sum of products
 // Input control point:
 //     PrimitiveId * input_cp_stride * #cp_per_input_patch + index * input_cp_stride + (attr# * 16 +
@@ -183,6 +205,8 @@ auto MakeInstPattern(Args&&... args) {
 // Sort terms left to right
 
 namespace {
+
+static IR::Program* g_program; // TODO delete
 
 enum AttributeRegion { InputCP, OutputCP, PatchConst, Unknown };
 
@@ -254,13 +278,14 @@ private:
         products.clear();
     }
 
-    void InitTessConstants(IR::ScalarReg ud_reg) {
+    void InitTessConstants(IR::ScalarReg sharp_ptr_base, s32 sharp_dword_offset) {
         if (tess_constants_initialized) {
-            ASSERT(ud_reg == info.tess_constants_ud_reg);
+            ASSERT(static_cast<s32>(sharp_dword_offset) == info.tess_consts_dword_offset &&
+                   sharp_ptr_base == info.tess_consts_ptr_base);
             return;
         }
-        // assume no indirection for now
-        info.tess_constants_ud_reg = ud_reg;
+        info.tess_consts_ptr_base = sharp_ptr_base;
+        info.tess_consts_dword_offset = sharp_dword_offset;
         info.ReadTessConstantBuffer(tess_constants);
         if (info.l_stage == LogicalStage::TessellationControl) {
             runtime_info.hs_info.InitFromTessConstants(tess_constants);
@@ -273,31 +298,48 @@ private:
     }
 
     IR::Value TryReplaceTessConstantLoad(IR::Inst* read_const_buffer) {
-        IR::Value ud_reg_base;
+        IR::Value sharp_ptr_base;
+        IR::Value sharp_dword_offset;
+
         IR::Value rv = IR::Value{read_const_buffer};
         IR::Value handle = read_const_buffer->Arg(0);
         IR::Value index = read_const_buffer->Arg(1);
-        IR::Value offset;
+        u32 offset;
         bool matched;
 
-        matched = MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(offset), MatchU32(0)).DoMatch(index);
+        IR::Value a, b;
+        // TODO dumb, could refactor folding to work outside of const prop pass and return folded
+        // value
+        matched = MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(a), MatchImm(b)).DoMatch(index);
 
         if (!matched)
             return rv;
 
-        matched = MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
-                      MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(ud_reg_base)),
-                      MatchIgnore(), MatchIgnore(), MatchIgnore())
-                      .DoMatch(handle);
+        offset = a.U32() + b.U32();
 
-        // TODO handle indirection (ReadConst handle)
-        ASSERT(matched);
-        InitTessConstants(ud_reg_base.ScalarReg());
+        if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
+                MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_dword_offset)),
+                MatchIgnore(), MatchIgnore(), MatchIgnore())
+                .DoMatch(handle)) {
+            InitTessConstants(IR::ScalarReg::Max, static_cast<s32>(sharp_dword_offset.ScalarReg()));
+        } else if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
+                       MakeInstPattern<IR::Opcode::ReadConst>(
+                           MakeInstPattern<IR::Opcode::CompositeConstructU32x2>(
+                               MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_ptr_base)),
+                               MatchIgnore()),
+                           MatchImm(sharp_dword_offset)),
+                       MatchIgnore(), MatchIgnore(), MatchIgnore())
+                       .DoMatch(handle)) {
+            InitTessConstants(sharp_ptr_base.ScalarReg(),
+                              static_cast<s32>(sharp_dword_offset.U32()));
+        } else {
+            UNREACHABLE_MSG("failed to match tess constants sharp buf");
+        }
 
-        if (offset.U32() < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
-                               static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
-            IR::Attribute tess_constant_attr = static_cast<IR::Attribute>(
-                static_cast<u32>(IR::Attribute::TcsLsStride) + offset.U32());
+        if (offset < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
+                         static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
+            IR::Attribute tess_constant_attr =
+                static_cast<IR::Attribute>(static_cast<u32>(IR::Attribute::TcsLsStride) + offset);
 
             IR::IREmitter ir{*read_const_buffer->GetParent(),
                              IR::Block::InstructionList::s_iterator_to(*read_const_buffer)};
@@ -397,6 +439,8 @@ private:
             return false;
         });
 
+        // DumpIR(*g_program, "before_crash");
+
         // Look for some term with a dynamic index (should be the control point index)
         for (auto i = 0; i < products.size(); i++) {
             auto& factors = products[i].as_factors;
@@ -459,20 +503,8 @@ private:
 
 } // namespace
 
-static void DumpIR(IR::Program& program, std::string phase) {
-    std::string s = IR::DumpProgram(program);
-    using namespace Common::FS;
-    const auto dump_dir = GetUserPath(PathType::ShaderDir) / "dumps";
-    if (!std::filesystem::exists(dump_dir)) {
-        std::filesystem::create_directories(dump_dir);
-    }
-    const auto filename =
-        fmt::format("{}_{:#018x}.{}.ir.txt", program.info.stage, program.info.pgm_hash, phase);
-    const auto file = IOFile{dump_dir / filename, FileAccessMode::Write};
-    file.WriteString(s);
-};
-
 void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
+    g_program = &program; // TODO delete
     Info& info = program.info;
     Pass pass(info, runtime_info);
 
@@ -545,6 +577,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             // case IR::Opcode::WriteSharedU128: // TODO
             case IR::Opcode::WriteSharedU32:
             case IR::Opcode::WriteSharedU64: {
+                // DumpIR(program, "before_walk");
                 RingAddressInfo address_info = pass.WalkRingAccess(&inst);
 
                 const u32 num_dwords = opcode == IR::Opcode::WriteSharedU32
@@ -584,10 +617,34 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                 break;
             }
 
-            case IR::Opcode::LoadSharedU32:
-            case IR::Opcode::LoadSharedU64:
-            case IR::Opcode::LoadSharedU128: {
-                break;
+            case IR::Opcode::LoadSharedU32: {
+                // case IR::Opcode::LoadSharedU64:
+                // case IR::Opcode::LoadSharedU128:
+                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
+
+                ASSERT(address_info.region == AttributeRegion::InputCP ||
+                       address_info.region == AttributeRegion::OutputCP);
+                switch (address_info.region) {
+                case AttributeRegion::InputCP: {
+                    u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                    const u32 param = offset_dw >> 2;
+                    const u32 comp = offset_dw & 3;
+                    IR::Value control_point_index =
+                        ir.IDiv(IR::U32{address_info.control_point_offset},
+                                ir.Imm32(runtime_info.hs_info.hs_cp_stride));
+                    IR::Value get_attrib =
+                        ir.GetAttribute(IR::Attribute::Param0 + param, comp, control_point_index);
+                    get_attrib = ir.BitCast<IR::U32>(IR::F32{get_attrib});
+                    inst.ReplaceUsesWithAndRemove(get_attrib);
+                    break;
+                }
+                case AttributeRegion::OutputCP: {
+                    UNREACHABLE_MSG("Unhandled output control point read");
+                    break;
+                }
+                default:
+                    break;
+                }
             }
 
             default:
@@ -642,6 +699,11 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                 ir.SetAttribute(IR::Attribute::Param0 + i, input_attr, j);
             }
         }
+        // TODO: wrap rest of program with if statement when passthrough?
+        // copy passthrough attributes ...
+        // if (InvocationId == 0) {
+        //    program ...
+        // }
     }
 }
 
@@ -674,11 +736,14 @@ void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                         ir.GetAttribute(IR::Attribute::Param0 + param, comp, control_point_index);
                     get_attrib = ir.BitCast<IR::U32>(IR::F32{get_attrib});
                     inst.ReplaceUsesWithAndRemove(get_attrib);
-                    DumpIR(program, "after_walk_domain");
                     break;
                 }
-                case AttributeRegion::PatchConst:
+                case AttributeRegion::PatchConst: {
+                    u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                    IR::Value get_patch = ir.GetPatch(IR::PatchGeneric(offset_dw));
+                    inst.ReplaceUsesWithAndRemove(get_patch);
                     break;
+                }
                 default:
                     break;
                 }

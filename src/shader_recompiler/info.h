@@ -193,7 +193,8 @@ struct Info {
     std::vector<u32> flattened_ud_buf;
 
     // TODO handle indirection
-    IR::ScalarReg tess_constants_ud_reg = IR::ScalarReg::Max;
+    IR::ScalarReg tess_consts_ptr_base = IR::ScalarReg::Max;
+    s32 tess_consts_dword_offset = -1;
 
     std::span<const u32> user_data;
     Stage stage;
@@ -282,9 +283,9 @@ struct Info {
     }
 
     void ReadTessConstantBuffer(TessellationDataConstantBuffer& tess_constants) {
-        ASSERT(tess_constants_ud_reg != IR::ScalarReg::Max);
-        auto buf = ReadUdReg<AmdGpu::Buffer>(static_cast<u32>(IR::ScalarReg::Max),
-                                             static_cast<u32>(tess_constants_ud_reg));
+        ASSERT(tess_consts_dword_offset >= 0);
+        auto buf = ReadUdReg<AmdGpu::Buffer>(static_cast<u32>(tess_consts_ptr_base),
+                                             static_cast<u32>(tess_consts_dword_offset));
         VAddr tess_constants_addr = buf.base_address;
         memcpy(&tess_constants,
                reinterpret_cast<TessellationDataConstantBuffer*>(tess_constants_addr),

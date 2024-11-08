@@ -378,21 +378,16 @@ void EmitContext::DefineInputs() {
             Name(id, fmt::format("in_attr{}", i));
             input_params[i] = {id, input_f32, F32[1], 4};
         }
-        // TODO: patch outputs share location namespace with control point outputs
-        // this is wrong
-        // TODO: check but pretty sure no builtin tess factors inputs are necessary.
-        // Hull shaders frequently write tess factors to both V# and DS. DS writes can be
-        // treated like generic patch attrs
-#if 1
+
         for (size_t index = 0; index < 30; ++index) {
             if (!(info.uses_patches & (1U << index))) {
                 continue;
             }
             const Id id{DefineInput(F32[4], index)};
             Decorate(id, spv::Decoration::Patch);
+            Name(id, fmt::format("patch_in{}", index));
             patches[index] = id;
         }
-#endif
         break;
     }
     default:
@@ -457,18 +452,18 @@ void EmitContext::DefineOutputs() {
             output_params[i] = {id, output_f32, F32[1], 4};
         }
 
-#if 1
-        // TODO: patch outputs share location namespace with control point outputs
-        // this is wrong
+        // TODO is it ok to share output locations between patch consts and
+        // per-vertex output attrs?
+        // spirv-val doesn't complain so idk
         for (size_t index = 0; index < 30; ++index) {
             if (!(info.uses_patches & (1U << index))) {
                 continue;
             }
             const Id id{DefineOutput(F32[4], index)};
             Decorate(id, spv::Decoration::Patch);
+            Name(id, fmt::format("patch_out{}", index));
             patches[index] = id;
         }
-#endif
         break;
     }
     case LogicalStage::TessellationEval: {
