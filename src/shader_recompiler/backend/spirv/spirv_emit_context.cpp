@@ -346,6 +346,7 @@ void EmitContext::DefineInputs() {
             DefineVariable(U32[1], spv::BuiltIn::InvocationId, spv::StorageClass::Input);
         patch_vertices =
             DefineVariable(U32[1], spv::BuiltIn::PatchVertices, spv::StorageClass::Input);
+        primitive_id = DefineVariable(U32[1], spv::BuiltIn::PrimitiveId, spv::StorageClass::Input);
 
         for (u32 i = 0; i < IR::NumParams; i++) {
             const IR::Attribute param{IR::Attribute::Param0 + i};
@@ -363,6 +364,7 @@ void EmitContext::DefineInputs() {
     }
     case LogicalStage::TessellationEval: {
         tess_coord = DefineInput(F32[3], std::nullopt, spv::BuiltIn::TessCoord);
+        primitive_id = DefineVariable(U32[1], spv::BuiltIn::PrimitiveId, spv::StorageClass::Input);
 
         for (u32 i = 0; i < IR::NumParams; i++) {
             const IR::Attribute param{IR::Attribute::Param0 + i};
