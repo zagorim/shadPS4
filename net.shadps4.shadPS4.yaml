@@ -56,3 +56,6 @@ modules:
     sources:
       - type: dir
         path: .
+    post-install:
+      # FIXME Temporary workaround until libfmt is added to the runtime
+      - cp /lib/*-linux-gnu/libfmt* /app/lib/
