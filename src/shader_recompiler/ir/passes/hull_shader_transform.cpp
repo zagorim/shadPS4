@@ -298,21 +298,19 @@ private:
                                static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
             IR::Attribute tess_constant_attr = static_cast<IR::Attribute>(
                 static_cast<u32>(IR::Attribute::TcsLsStride) + offset.U32());
-            rv = IR::Value(tess_constant_attr);
 
             IR::IREmitter ir{*read_const_buffer->GetParent(),
                              IR::Block::InstructionList::s_iterator_to(*read_const_buffer)};
-            IR::Value replacement;
-            if (rv.Attribute() == IR::Attribute::TcsOffChipTessellationFactorThreshold) {
-                replacement = ir.GetAttribute(rv.Attribute());
+            if (tess_constant_attr == IR::Attribute::TcsOffChipTessellationFactorThreshold) {
+                rv = ir.GetAttribute(tess_constant_attr);
             } else {
-                replacement = ir.GetAttributeU32(rv.Attribute());
+                rv = ir.GetAttributeU32(tess_constant_attr);
             }
 
             if (IR::Value{read_const_buffer} == products.back().as_nested_value) {
-                products.back().as_nested_value = replacement;
+                products.back().as_nested_value = rv;
             }
-            read_const_buffer->ReplaceUsesWithAndRemove(replacement);
+            read_const_buffer->ReplaceUsesWithAndRemove(rv);
         }
 
         // Return attribute number unwrapped from GetAttribute inst
@@ -345,8 +343,14 @@ private:
             Visit(a);
         } else if (!node.IsImmediate() &&
                    node.TryInstRecursive()->GetOpcode() == IR::Opcode::ReadConstBuffer) {
-            IR::Value v = TryReplaceTessConstantLoad(node.InstRecursive());
-            products.back().as_factors.emplace_back(v);
+            IR::Value replacement_attr = TryReplaceTessConstantLoad(node.InstRecursive());
+            if (node != replacement_attr) {
+                // Unwrap the attribute from the GetAttribute Inst and push back as a factor (more
+                // convenient for scanning the factors later)
+                IR::Attribute attr = replacement_attr.Inst()->Arg(0).Attribute();
+                node = IR::Value{attr};
+            }
+            products.back().as_factors.emplace_back(node);
         } else if (MakeInstPattern<IR::Opcode::GetAttributeU32>(MatchValue(a), MatchU32(0))
                        .DoMatch(node)) {
             products.back().as_factors.emplace_back(a);
@@ -619,6 +623,12 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
         });
         ASSERT(it != entry_block->end());
         ++it;
+        ASSERT(it != entry_block->end());
+        ++it;
+        // Prologue
+        // SetExec #true
+        // <- insert here
+        // ...
         IR::IREmitter ir{*entry_block, it};
 
         ASSERT(runtime_info.hs_info.ls_stride % 16 == 0);
