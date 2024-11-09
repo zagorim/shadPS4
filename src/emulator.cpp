@@ -29,7 +29,6 @@
 #include "core/file_sys/fs.h"
 #include "core/libraries/disc_map/disc_map.h"
 #include "core/libraries/fiber/fiber.h"
-#include "core/libraries/kernel/thread_management.h"
 #include "core/libraries/libc_internal/libc_internal.h"
 #include "core/libraries/libs.h"
 #include "core/libraries/ngs2/ngs2.h"
@@ -222,7 +221,6 @@ void Emulator::Run(const std::filesystem::path& file) {
     VideoCore::SetOutputDir(mount_captures_dir, id);
 
     // Initialize kernel and library facilities.
-    Libraries::Kernel::init_pthreads();
     Libraries::InitHLELibs(&linker->GetHLESymbols());
 
     // Load the module with the linker
@@ -257,9 +255,7 @@ void Emulator::Run(const std::filesystem::path& file) {
     }
 #endif
 
-    // start execution
-    std::jthread mainthread =
-        std::jthread([this](std::stop_token stop_token) { linker->Execute(); });
+    linker->Execute();
 
     window->initTimers();
     while (window->isOpen()) {
@@ -274,7 +270,7 @@ void Emulator::Run(const std::filesystem::path& file) {
 }
 
 void Emulator::LoadSystemModules(const std::filesystem::path& file, std::string game_serial) {
-    constexpr std::array<SysModules, 12> ModulesToLoad{
+    constexpr std::array<SysModules, 11> ModulesToLoad{
         {{"libSceNgs2.sprx", &Libraries::Ngs2::RegisterlibSceNgs2},
          {"libSceFiber.sprx", &Libraries::Fiber::RegisterlibSceFiber},
          {"libSceUlt.sprx", nullptr},
@@ -285,8 +281,7 @@ void Emulator::LoadSystemModules(const std::filesystem::path& file, std::string 
          {"libSceRtc.sprx", &Libraries::Rtc::RegisterlibSceRtc},
          {"libSceJpegEnc.sprx", nullptr},
          {"libSceRazorCpu.sprx", nullptr},
-         {"libSceCesCs.sprx", nullptr},
-         {"libSceRudp.sprx", nullptr}}};
+         {"libSceCesCs.sprx", nullptr}}};
 
     std::vector<std::filesystem::path> found_modules;
     const auto& sys_module_path = Common::FS::GetUserPath(Common::FS::PathType::SysModuleDir);

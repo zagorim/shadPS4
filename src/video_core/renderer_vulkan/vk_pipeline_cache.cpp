@@ -368,7 +368,7 @@ bool PipelineCache::RefreshGraphicsKey() {
     switch (regs.stage_enable.raw) {
     case Liverpool::ShaderStageEnable::VgtStages::EsGs: {
         if (!instance.IsGeometryStageSupported() || !IsGsFeaturesSupported()) {
-            break;
+            return false;
         }
         if (!TryBindStage(Stage::Export, LogicalStage::Vertex)) {
             return false;

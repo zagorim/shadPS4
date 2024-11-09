@@ -7,7 +7,7 @@
 #include "common/assert.h"
 #include "common/error.h"
 #include "core/address_space.h"
-#include "core/libraries/kernel/memory_management.h"
+#include "core/libraries/kernel/memory.h"
 #include "core/memory.h"
 #include "libraries/error_codes.h"
 
@@ -76,7 +76,7 @@ struct AddressSpace::Impl {
 
         // Take the reduction off of the system managed area, and leave the others unchanged.
         system_managed_base = virtual_base;
-        system_managed_size = SystemManagedSize - reduction;
+        system_managed_size = SystemManagedSize - size_t(virtual_base - SYSTEM_MANAGED_MIN);
         system_reserved_base = reinterpret_cast<u8*>(SYSTEM_RESERVED_MIN);
         system_reserved_size = SystemReservedSize;
         user_base = reinterpret_cast<u8*>(USER_MIN);
@@ -251,18 +251,35 @@ struct AddressSpace::Impl {
             return;
         }
 
-        DWORD old_flags{};
-        bool success =
-            VirtualProtect(reinterpret_cast<void*>(virtual_addr), size, new_flags, &old_flags);
+        const auto ForEachMapped = [&](VAddr base, size_t size, auto&& func) {
+            const VAddr base_addr = base;
+            const VAddr end_addr = base_addr + size;
+            auto [it, end_it] = placeholders.equal_range({base_addr, end_addr});
+            while (it != end_it) {
+                const size_t range_addr = std::max(it->lower(), base_addr);
+                const size_t range_end = std::min(it->upper(), end_addr);
+                if (base != range_addr) {
+                    func(base, range_addr);
+                }
+                base = range_end;
+                it++;
+            }
+            if (base != end_addr) {
+                func(base, end_addr);
+            }
+        };
 
-        if (!success) {
-            LOG_ERROR(Common_Memory,
-                      "Failed to change virtual memory protection for address {:#x}, size {}",
-                      virtual_addr, size);
-        }
-
-        // Use assert to ensure success in debug builds
-        DEBUG_ASSERT(success && "Failed to change virtual memory protection");
+        const VAddr virtual_end = virtual_addr + size;
+        ForEachMapped(virtual_addr, virtual_end, [&](VAddr map_base, VAddr map_end) {
+            DWORD old_flags{};
+            const size_t range_addr = std::max(map_base, virtual_addr);
+            const size_t range_size = std::min(map_end, virtual_end) - range_addr;
+            if (!VirtualProtect(LPVOID(range_addr), range_size, new_flags, &old_flags)) {
+                LOG_ERROR(Common_Memory,
+                          "Failed to change virtual memory protection for address {:#x}, size {}",
+                          range_addr, range_size);
+            }
+        });
     }
 
     HANDLE process{};
