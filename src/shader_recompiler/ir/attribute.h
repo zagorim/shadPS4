@@ -91,6 +91,7 @@ enum class Attribute : u64 {
     TcsPatchOutputSize = 91,
     TcsOffChipTessellationFactorThreshold = 92,
     TcsFirstEdgeTessFactorIndex = 93,
+    TessPatchIdInVgt = 94,
     Max,
 };
 

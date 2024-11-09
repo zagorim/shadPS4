@@ -431,7 +431,7 @@ private:
                     } else if (value.Attribute() == IR::Attribute::TcsPatchConstBase) {
                         region_count += 2;
                         return true;
-                    } else if (value.Attribute() == IR::Attribute::PrimitiveId) {
+                    } else if (value.Attribute() == IR::Attribute::TessPatchIdInVgt) {
                         return true;
                     }
                 }
@@ -521,7 +521,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                     MatchU32(0), MatchU32(8))
                     .DoMatch(IR::Value{&inst})) {
                 IR::IREmitter emit(*block, it);
-                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::PrimitiveId);
+                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::TessPatchIdInVgt);
                 inst.ReplaceUsesWithAndRemove(replacement);
             } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
                            MakeInstPattern<IR::Opcode::GetAttributeU32>(

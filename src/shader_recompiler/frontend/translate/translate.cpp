@@ -56,17 +56,16 @@ void Translator::EmitPrologue() {
     case LogicalStage::TessellationControl: {
         ir.SetVectorReg(IR::VectorReg::V1,
                         ir.GetAttributeU32(IR::Attribute::PackedHullInvocationInfo));
-        break;
     }
     case LogicalStage::TessellationEval:
         ir.SetVectorReg(IR::VectorReg::V0,
                         ir.GetAttribute(IR::Attribute::TessellationEvaluationPointU));
         ir.SetVectorReg(IR::VectorReg::V1,
                         ir.GetAttribute(IR::Attribute::TessellationEvaluationPointV));
-        // For some reason PrimitiveId is passed as V2 and V3
-        // V2 feeds address calculations (compiler generated)
-        // V3 seems to be used when user uses patch id explicitly
-        ir.SetVectorReg(IR::VectorReg::V2, ir.GetAttributeU32(IR::Attribute::PrimitiveId));
+        // I think V2 is actually the patch id within the patches running on the local CU, used in
+        // compiler generated address calcs,
+        // and V3 is the patch id within the draw
+        ir.SetVectorReg(IR::VectorReg::V2, ir.GetAttributeU32(IR::Attribute::TessPatchIdInVgt));
         ir.SetVectorReg(IR::VectorReg::V3, ir.GetAttributeU32(IR::Attribute::PrimitiveId));
         break;
     case LogicalStage::Fragment:
