@@ -49,6 +49,7 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DENABLE_QT_GUI=ON
+      - -DENABLE_UPDATER=OFF
     build-options:
       env:
         CMAKE_C_COMPILER: clang
