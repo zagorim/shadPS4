@@ -144,6 +144,8 @@ std::string NameOf(Attribute attribute) {
         return "TcsOffChipTessellationFactorThreshold";
     case Attribute::TcsFirstEdgeTessFactorIndex:
         return "TcsFirstEdgeTessFactorIndex";
+    case Attribute::TessPatchIdInVgt:
+        return "TessPatchIdInVgt";
     default:
         break;
     }
