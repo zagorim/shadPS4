@@ -56,6 +56,13 @@ void Translator::EmitPrologue() {
     case LogicalStage::TessellationControl: {
         ir.SetVectorReg(IR::VectorReg::V1,
                         ir.GetAttributeU32(IR::Attribute::PackedHullInvocationInfo));
+        // Test
+        ir.SetPatch(IR::Patch::TessellationLodLeft, ir.Imm32(1.0f));
+        ir.SetPatch(IR::Patch::TessellationLodTop, ir.Imm32(1.0f));
+        ir.SetPatch(IR::Patch::TessellationLodRight, ir.Imm32(1.0f));
+        ir.SetPatch(IR::Patch::TessellationLodBottom, ir.Imm32(1.0f));
+        ir.SetPatch(IR::Patch::TessellationLodInteriorU, ir.Imm32(1.0f));
+        ir.SetPatch(IR::Patch::TessellationLodInteriorV, ir.Imm32(1.0f));
         break;
     }
     case LogicalStage::TessellationEval:
