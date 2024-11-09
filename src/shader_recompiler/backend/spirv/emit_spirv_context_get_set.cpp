@@ -294,6 +294,7 @@ Id EmitGetAttributeU32(EmitContext& ctx, IR::Attribute attr, u32 comp) {
         return ctx.OpSelect(ctx.U32[1], ctx.OpLoad(ctx.U1[1], ctx.front_facing), ctx.u32_one_value,
                             ctx.u32_zero_value);
     case IR::Attribute::PrimitiveId:
+    case IR::Attribute::TessPatchIdInVgt: // TODO see why this isnt DCEd
         ASSERT(ctx.info.l_stage == LogicalStage::Geometry ||
                ctx.info.l_stage == LogicalStage::TessellationControl ||
                ctx.info.l_stage == LogicalStage::TessellationEval);
