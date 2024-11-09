@@ -56,6 +56,7 @@ void Translator::EmitPrologue() {
     case LogicalStage::TessellationControl: {
         ir.SetVectorReg(IR::VectorReg::V1,
                         ir.GetAttributeU32(IR::Attribute::PackedHullInvocationInfo));
+        break;
     }
     case LogicalStage::TessellationEval:
         ir.SetVectorReg(IR::VectorReg::V0,
