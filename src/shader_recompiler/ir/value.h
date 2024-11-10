@@ -18,6 +18,7 @@
 #include "shader_recompiler/exception.h"
 #include "shader_recompiler/ir/attribute.h"
 #include "shader_recompiler/ir/opcodes.h"
+#include "shader_recompiler/ir/opcodes.h"
 #include "shader_recompiler/ir/patch.h"
 #include "shader_recompiler/ir/reg.h"
 #include "shader_recompiler/ir/type.h"
@@ -286,7 +287,7 @@ static_assert(sizeof(Inst) <= 168, "Inst size unintentionally increased");
 class UseIterator
     : public boost::iterator_facade<UseIterator, IR::Use, boost::forward_traversal_tag, IR::Use> {
 public:
-    UseIterator() : user_it(), user_end(), bitmask_pos(0) {};
+    UseIterator() : user_it(), user_end(), bitmask_pos(0){};
 
     explicit UseIterator(IR::Inst::UserList::UserIterator user_begin_,
                          IR::Inst::UserList::UserIterator user_end_)
@@ -490,4 +491,5 @@ template <>
 struct hash<Shader::IR::Value> {
     std::size_t operator()(const Shader::IR::Value& v) const;
 };
+
 } // namespace std

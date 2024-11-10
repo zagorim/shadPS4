@@ -149,4 +149,5 @@ std::size_t hash<Shader::IR::Value>::operator()(const Shader::IR::Value& v) cons
     }
     UNREACHABLE_MSG("Invalid type {}", v.type);
 }
+
 } // namespace std
