@@ -286,6 +286,12 @@ public:
         case IR::Opcode::WriteSharedU128:
             addr = access->Arg(0);
             break;
+        case IR::Opcode::StoreBufferU32:
+        case IR::Opcode::StoreBufferU32x2:
+        case IR::Opcode::StoreBufferU32x3:
+        case IR::Opcode::StoreBufferU32x4:
+            addr = access->Arg(1);
+            break;
         default:
             UNREACHABLE();
         }
@@ -335,7 +341,7 @@ private:
 
             // TODO dumb, could refactor folding to work outside of const prop pass and return
             // folded value
-            if (MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(a), MatchImm(b)).DoMatch(index)) {
+            if (index.IsImmediate()) {
                 u32 offset = a.U32() + b.U32();
                 if (offset < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
                                  static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
@@ -486,6 +492,10 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             case IR::Opcode::StoreBufferU32x2:
             case IR::Opcode::StoreBufferU32x3:
             case IR::Opcode::StoreBufferU32x4: {
+                // TODO: rename struct
+                RingAddressInfo address_info = pass.WalkRingAccess(&inst);
+                ASSERT(address_info.control_point_offset == IR::Value(0u));
+
                 const auto info = inst.Flags<IR::BufferInstInfo>();
                 if (!info.globally_coherent) {
                     break;
@@ -498,11 +508,30 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                     return ir.BitCast<IR::F32, IR::U32>(IR::U32{data});
                 };
                 const u32 num_dwords = u32(opcode) - u32(IR::Opcode::StoreBufferU32) + 1;
-                const auto factor_idx = info.inst_offset.Value() >> 2;
+                const u32 gcn_factor_idx =
+                    (info.inst_offset.Value() + address_info.attribute_byte_offset) >> 2;
+
                 const IR::Value data = inst.Arg(2);
+                auto get_factor_attr = [&](u32 gcn_factor_idx) -> IR::Patch {
+                    ASSERT(gcn_factor_idx * 4 < runtime_info.hs_info.tess_factor_stride);
+
+                    switch (runtime_info.hs_info.tess_factor_stride) {
+                    case 24:
+                        return IR::PatchFactor(gcn_factor_idx);
+                    case 16:
+                        if (gcn_factor_idx == 3) {
+                            return IR::Patch::TessellationLodInteriorU;
+                        }
+                        return IR::PatchFactor(gcn_factor_idx);
+
+                    default:
+                        UNREACHABLE_MSG("Unhandled tess factor stride");
+                    }
+                };
+
                 inst.Invalidate();
                 if (num_dwords == 1) {
-                    ir.SetPatch(IR::PatchFactor(factor_idx), GetValue(data));
+                    ir.SetPatch(get_factor_attr(gcn_factor_idx), GetValue(data));
                     break;
                 }
                 auto* inst = data.TryInstRecursive();
@@ -510,7 +539,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                                 inst->GetOpcode() == IR::Opcode::CompositeConstructU32x3 ||
                                 inst->GetOpcode() == IR::Opcode::CompositeConstructU32x4));
                 for (s32 i = 0; i < num_dwords; i++) {
-                    ir.SetPatch(IR::PatchFactor(factor_idx + i), GetValue(inst->Arg(i)));
+                    ir.SetPatch(get_factor_attr(gcn_factor_idx + i), GetValue(inst->Arg(i)));
                 }
                 break;
             }
@@ -542,7 +571,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                         // Invocation ID array index is implicit, handled by SPIRV backend
                         ir.SetAttribute(IR::Attribute::Param0 + param, data, comp);
                     } else {
-                        assert(output_kind == AttributeRegion::PatchConst);
+                        ASSERT(output_kind == AttributeRegion::PatchConst);
                         ir.SetPatch(IR::PatchGeneric(offset_dw), data);
                     }
                 };
