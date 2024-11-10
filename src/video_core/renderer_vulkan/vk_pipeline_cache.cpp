@@ -102,6 +102,8 @@ Shader::RuntimeInfo PipelineCache::BuildRuntimeInfo(Stage stage, LogicalStage l_
 
         // TODO dont rely on HullStateConstants
         info.hs_info.output_control_points = regs.hs_constants.num_output_cp;
+        info.hs_info.tess_factor_stride = regs.hs_constants.tess_factor_stride;
+
         // We need to initialize most hs_info fields after finding the V# with tess constants
         break;
     }

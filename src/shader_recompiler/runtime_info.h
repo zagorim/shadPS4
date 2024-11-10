@@ -96,6 +96,9 @@ struct HullRuntimeInfo {
     // from registers
     u32 output_control_points;
 
+    // from HullStateConstants in HsProgram (TODO dont rely on this)
+    u32 tess_factor_stride;
+
     // from tess constants buffer
     u32 ls_stride;
     u32 hs_cp_stride;
