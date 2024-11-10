@@ -88,10 +88,14 @@ IR::Program TranslateProgram(std::span<const u32> code, Pools& pools, Info& info
     // Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);
     dumpMatchingIR("post_ssa");
     if (stage == Stage::Hull) {
+        Shader::Optimization::TessellationPreprocess(program, runtime_info);
         Shader::Optimization::HullShaderTransform(program, runtime_info);
+        Shader::Optimization::TessellationPostprocess(program, runtime_info);
         dumpMatchingIR("post_hull");
     } else if (info.l_stage == LogicalStage::TessellationEval) {
+        Shader::Optimization::TessellationPreprocess(program, runtime_info);
         Shader::Optimization::DomainShaderTransform(program, runtime_info);
+        Shader::Optimization::TessellationPostprocess(program, runtime_info);
         dumpMatchingIR("post_domain");
     }
     Shader::Optimization::ConstantPropagationPass(program.post_order_blocks);

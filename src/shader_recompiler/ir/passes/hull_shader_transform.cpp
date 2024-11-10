@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <numeric>
+#include "shader_recompiler/ir/breadth_first_search.h"
 #include "shader_recompiler/ir/ir_emitter.h"
 #include "shader_recompiler/ir/program.h"
 
@@ -206,6 +207,54 @@ private:
 
 namespace {
 
+static void InitTessConstants(IR::ScalarReg sharp_ptr_base, s32 sharp_dword_offset,
+                              Shader::Info& info, Shader::RuntimeInfo& runtime_info,
+                              TessellationDataConstantBuffer& tess_constants) {
+    info.tess_consts_ptr_base = sharp_ptr_base;
+    info.tess_consts_dword_offset = sharp_dword_offset;
+    info.ReadTessConstantBuffer(tess_constants);
+    if (info.l_stage == LogicalStage::TessellationControl) {
+        runtime_info.hs_info.InitFromTessConstants(tess_constants);
+    } else {
+        runtime_info.vs_info.InitFromTessConstants(tess_constants);
+    }
+
+    return;
+}
+
+struct TessSharpLocation {
+    IR::ScalarReg ptr_base;
+    u32 dword_off;
+};
+
+std::optional<TessSharpLocation> FindTessConstantSharp(IR::Inst* read_const_buffer) {
+    IR::Value sharp_ptr_base;
+    IR::Value sharp_dword_offset;
+
+    IR::Value rv = IR::Value{read_const_buffer};
+    IR::Value handle = read_const_buffer->Arg(0);
+
+    if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
+            MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_dword_offset)), MatchIgnore(),
+            MatchIgnore(), MatchIgnore())
+            .DoMatch(handle)) {
+        return TessSharpLocation{.ptr_base = IR::ScalarReg::Max,
+                                 .dword_off = static_cast<u32>(sharp_dword_offset.ScalarReg())};
+    } else if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
+                   MakeInstPattern<IR::Opcode::ReadConst>(
+                       MakeInstPattern<IR::Opcode::CompositeConstructU32x2>(
+                           MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_ptr_base)),
+                           MatchIgnore()),
+                       MatchImm(sharp_dword_offset)),
+                   MatchIgnore(), MatchIgnore(), MatchIgnore())
+                   .DoMatch(handle)) {
+        return TessSharpLocation{.ptr_base = sharp_ptr_base.ScalarReg(),
+                                 .dword_off = sharp_dword_offset.U32()};
+    }
+    UNREACHABLE_MSG("failed to match tess constants sharp buf");
+    return {};
+}
+
 static IR::Program* g_program; // TODO delete
 
 enum AttributeRegion { InputCP, OutputCP, PatchConst, Unknown };
@@ -218,7 +267,10 @@ struct RingAddressInfo {
 
 class Pass {
 public:
-    Pass(Info& info_, RuntimeInfo& runtime_info_) : info(info_), runtime_info(runtime_info_) {}
+    Pass(Info& info_, RuntimeInfo& runtime_info_) : info(info_), runtime_info(runtime_info_) {
+        InitTessConstants(info.tess_consts_ptr_base, info.tess_consts_dword_offset, info,
+                          runtime_info, tess_constants);
+    }
 
     RingAddressInfo WalkRingAccess(IR::Inst* access) {
         Reset();
@@ -246,117 +298,10 @@ public:
         return address_info;
     }
 
-    void ReplaceAttributes(IR::Program& program) {
-        for (IR::Block* block : program.blocks) {
-            for (IR::Inst& inst : block->Instructions()) {
-                if (inst.GetOpcode() == IR::Opcode::GetAttributeU32) {
-                    switch (inst.Arg(0).Attribute()) {
-                    case IR::Attribute::TcsLsStride:
-                        ASSERT(info.l_stage == LogicalStage::TessellationControl);
-                        inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_lsStride));
-                        break;
-                    case IR::Attribute::TcsCpStride:
-                        inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_hsCpStride));
-                        break;
-                    case IR::Attribute::TcsNumPatches:
-                    case IR::Attribute::TcsOutputBase:
-                    case IR::Attribute::TcsPatchConstSize:
-                    case IR::Attribute::TcsPatchConstBase:
-                    case IR::Attribute::TcsPatchOutputSize:
-                    case IR::Attribute::TcsFirstEdgeTessFactorIndex:
-                    default:
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
 private:
     void Reset() {
         within_mul = false;
         products.clear();
-    }
-
-    void InitTessConstants(IR::ScalarReg sharp_ptr_base, s32 sharp_dword_offset) {
-        if (tess_constants_initialized) {
-            ASSERT(static_cast<s32>(sharp_dword_offset) == info.tess_consts_dword_offset &&
-                   sharp_ptr_base == info.tess_consts_ptr_base);
-            return;
-        }
-        info.tess_consts_ptr_base = sharp_ptr_base;
-        info.tess_consts_dword_offset = sharp_dword_offset;
-        info.ReadTessConstantBuffer(tess_constants);
-        if (info.l_stage == LogicalStage::TessellationControl) {
-            runtime_info.hs_info.InitFromTessConstants(tess_constants);
-        } else {
-            runtime_info.vs_info.InitFromTessConstants(tess_constants);
-        }
-
-        tess_constants_initialized = true;
-        return;
-    }
-
-    IR::Value TryReplaceTessConstantLoad(IR::Inst* read_const_buffer) {
-        IR::Value sharp_ptr_base;
-        IR::Value sharp_dword_offset;
-
-        IR::Value rv = IR::Value{read_const_buffer};
-        IR::Value handle = read_const_buffer->Arg(0);
-        IR::Value index = read_const_buffer->Arg(1);
-        u32 offset;
-        bool matched;
-
-        IR::Value a, b;
-        // TODO dumb, could refactor folding to work outside of const prop pass and return folded
-        // value
-        matched = MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(a), MatchImm(b)).DoMatch(index);
-
-        if (!matched)
-            return rv;
-
-        offset = a.U32() + b.U32();
-
-        if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
-                MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_dword_offset)),
-                MatchIgnore(), MatchIgnore(), MatchIgnore())
-                .DoMatch(handle)) {
-            InitTessConstants(IR::ScalarReg::Max, static_cast<s32>(sharp_dword_offset.ScalarReg()));
-        } else if (MakeInstPattern<IR::Opcode::CompositeConstructU32x4>(
-                       MakeInstPattern<IR::Opcode::ReadConst>(
-                           MakeInstPattern<IR::Opcode::CompositeConstructU32x2>(
-                               MakeInstPattern<IR::Opcode::GetUserData>(MatchImm(sharp_ptr_base)),
-                               MatchIgnore()),
-                           MatchImm(sharp_dword_offset)),
-                       MatchIgnore(), MatchIgnore(), MatchIgnore())
-                       .DoMatch(handle)) {
-            InitTessConstants(sharp_ptr_base.ScalarReg(),
-                              static_cast<s32>(sharp_dword_offset.U32()));
-        } else {
-            UNREACHABLE_MSG("failed to match tess constants sharp buf");
-        }
-
-        if (offset < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
-                         static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
-            IR::Attribute tess_constant_attr =
-                static_cast<IR::Attribute>(static_cast<u32>(IR::Attribute::TcsLsStride) + offset);
-
-            IR::IREmitter ir{*read_const_buffer->GetParent(),
-                             IR::Block::InstructionList::s_iterator_to(*read_const_buffer)};
-            if (tess_constant_attr == IR::Attribute::TcsOffChipTessellationFactorThreshold) {
-                rv = ir.GetAttribute(tess_constant_attr);
-            } else {
-                rv = ir.GetAttributeU32(tess_constant_attr);
-            }
-
-            if (IR::Value{read_const_buffer} == products.back().as_nested_value) {
-                products.back().as_nested_value = rv;
-            }
-            read_const_buffer->ReplaceUsesWithAndRemove(rv);
-        }
-
-        // Return attribute number unwrapped from GetAttribute inst
-        return rv;
     }
 
     void Visit(IR::Value node) {
@@ -383,14 +328,39 @@ private:
                        .DoMatch(node)) {
             products.back().as_factors.emplace_back(IR::Value(u32(2 << (b.U32() - 1))));
             Visit(a);
-        } else if (!node.IsImmediate() &&
-                   node.TryInstRecursive()->GetOpcode() == IR::Opcode::ReadConstBuffer) {
-            IR::Value replacement_attr = TryReplaceTessConstantLoad(node.InstRecursive());
-            if (node != replacement_attr) {
-                // Unwrap the attribute from the GetAttribute Inst and push back as a factor (more
-                // convenient for scanning the factors later)
-                IR::Attribute attr = replacement_attr.Inst()->Arg(0).Attribute();
-                node = IR::Value{attr};
+        } else if (MakeInstPattern<IR::Opcode::ReadConstBuffer>(MatchIgnore(), MatchValue(b))
+                       .DoMatch(node)) {
+            IR::Inst* read_const_buffer = node.InstRecursive();
+            IR::Value index = read_const_buffer->Arg(1);
+
+            // TODO dumb, could refactor folding to work outside of const prop pass and return
+            // folded value
+            if (MakeInstPattern<IR::Opcode::IAdd32>(MatchImm(a), MatchImm(b)).DoMatch(index)) {
+                u32 offset = a.U32() + b.U32();
+                if (offset < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
+                                 static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
+                    IR::Attribute tess_constant_attr = static_cast<IR::Attribute>(
+                        static_cast<u32>(IR::Attribute::TcsLsStride) + offset);
+                    IR::Value replacement;
+
+                    IR::IREmitter ir{*read_const_buffer->GetParent(),
+                                     IR::Block::InstructionList::s_iterator_to(*read_const_buffer)};
+                    if (tess_constant_attr ==
+                        IR::Attribute::TcsOffChipTessellationFactorThreshold) {
+                        replacement = ir.GetAttribute(tess_constant_attr);
+                    } else {
+                        replacement = ir.GetAttributeU32(tess_constant_attr);
+                    }
+
+                    read_const_buffer->ReplaceUsesWithAndRemove(replacement);
+                    // Unwrap the attribute from the GetAttribute Inst and push back as a factor
+                    // (more convenient for scanning the factors later)
+                    node = IR::Value{tess_constant_attr};
+
+                    if (IR::Value{read_const_buffer} == products.back().as_nested_value) {
+                        products.back().as_nested_value = replacement;
+                    }
+                }
             }
             products.back().as_factors.emplace_back(node);
         } else if (MakeInstPattern<IR::Opcode::GetAttributeU32>(MatchValue(a), MatchU32(0))
@@ -481,7 +451,6 @@ private:
     RuntimeInfo& runtime_info;
 
     TessellationDataConstantBuffer tess_constants;
-    bool tess_constants_initialized{};
     bool within_mul{};
 
     // One product in the sum of products making up an address
@@ -507,34 +476,6 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
     g_program = &program; // TODO delete
     Info& info = program.info;
     Pass pass(info, runtime_info);
-
-    // Replace the BFEs on V1 (packed with patch id and output cp id) for easier pattern matching
-    // TODO refactor
-    for (IR::Block* block : program.blocks) {
-        for (auto it = block->Instructions().begin(); it != block->Instructions().end(); it++) {
-            IR::Inst& inst = *it;
-            const auto opcode = inst.GetOpcode();
-
-            if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
-                    MakeInstPattern<IR::Opcode::GetAttributeU32>(
-                        MatchAttribute(IR::Attribute::PackedHullInvocationInfo), MatchIgnore()),
-                    MatchU32(0), MatchU32(8))
-                    .DoMatch(IR::Value{&inst})) {
-                IR::IREmitter emit(*block, it);
-                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::TessPatchIdInVgt);
-                inst.ReplaceUsesWithAndRemove(replacement);
-            } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
-                           MakeInstPattern<IR::Opcode::GetAttributeU32>(
-                               MatchAttribute(IR::Attribute::PackedHullInvocationInfo),
-                               MatchIgnore()),
-                           MatchU32(8), MatchU32(5))
-                           .DoMatch(IR::Value{&inst})) {
-                IR::IREmitter emit(*block, it);
-                IR::Value replacement = emit.GetAttributeU32(IR::Attribute::InvocationId);
-                inst.ReplaceUsesWithAndRemove(replacement);
-            }
-        }
-    }
 
     for (IR::Block* block : program.blocks) {
         for (IR::Inst& inst : block->Instructions()) {
@@ -653,24 +594,6 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
         }
     }
 
-    for (IR::Block* block : program.blocks) {
-        for (IR::Inst& inst : block->Instructions()) {
-            switch (inst.GetOpcode()) {
-            case IR::Opcode::LoadSharedU32:
-            case IR::Opcode::LoadSharedU64:
-            case IR::Opcode::LoadSharedU128:
-            case IR::Opcode::WriteSharedU32:
-            case IR::Opcode::WriteSharedU64:
-            case IR::Opcode::WriteSharedU128:
-                UNREACHABLE_MSG("Remaining DS instruction. Hull transform failed");
-            default:
-                break;
-            }
-        }
-    }
-
-    pass.ReplaceAttributes(program);
-
     if (runtime_info.hs_info.IsPassthrough()) {
         // Copy input attributes to output attributes, indexed by InvocationID
         // Passthrough should imply that input and output patches have same number of vertices
@@ -755,6 +678,122 @@ void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             }
         }
     }
+}
+
+// Run before copy prop
+void TessellationPreprocess(IR::Program& program, RuntimeInfo& runtime_info) {
+    TessellationDataConstantBuffer tess_constants;
+    Shader::Info& info = program.info;
+    // Find the TessellationDataConstantBuffer V#
+    for (IR::Block* block : program.blocks) {
+        for (IR::Inst& inst : block->Instructions()) {
+            switch (inst.GetOpcode()) {
+            case IR::Opcode::LoadSharedU32:
+            case IR::Opcode::LoadSharedU64:
+            case IR::Opcode::LoadSharedU128:
+            case IR::Opcode::WriteSharedU32:
+            case IR::Opcode::WriteSharedU64:
+            case IR::Opcode::WriteSharedU128: {
+                IR::Value addr = inst.Arg(0);
+                auto read_const_buffer = IR::BreadthFirstSearch(
+                    addr, [](IR::Inst* maybe_tess_const) -> std::optional<IR::Inst*> {
+                        if (maybe_tess_const->GetOpcode() == IR::Opcode::ReadConstBuffer) {
+                            return maybe_tess_const;
+                        }
+                        return std::nullopt;
+                    });
+                if (read_const_buffer) {
+                    auto sharp_location = FindTessConstantSharp(read_const_buffer.value());
+                    if (sharp_location) {
+                        if (info.FoundTessConstantsSharp()) {
+                            ASSERT(static_cast<s32>(sharp_location->dword_off) ==
+                                       info.tess_consts_dword_offset &&
+                                   sharp_location->ptr_base == info.tess_consts_ptr_base);
+                        }
+                        InitTessConstants(sharp_location->ptr_base,
+                                          static_cast<s32>(sharp_location->dword_off), info,
+                                          runtime_info, tess_constants);
+                        // break; TODO
+                        continue;
+                    }
+                }
+                continue;
+            }
+            default:
+                continue;
+            }
+
+            break;
+        }
+    }
+
+    ASSERT(info.FoundTessConstantsSharp());
+
+    if (info.l_stage == LogicalStage::TessellationControl) {
+        // Replace the BFEs on V1 (packed with patch id and output cp id) for easier pattern
+        // matching
+        for (IR::Block* block : program.blocks) {
+            for (auto it = block->Instructions().begin(); it != block->Instructions().end(); it++) {
+                IR::Inst& inst = *it;
+                if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
+                        MakeInstPattern<IR::Opcode::GetAttributeU32>(
+                            MatchAttribute(IR::Attribute::PackedHullInvocationInfo), MatchIgnore()),
+                        MatchU32(0), MatchU32(8))
+                        .DoMatch(IR::Value{&inst})) {
+                    IR::IREmitter emit(*block, it);
+                    IR::Value replacement = emit.GetAttributeU32(IR::Attribute::TessPatchIdInVgt);
+                    inst.ReplaceUsesWithAndRemove(replacement);
+                } else if (MakeInstPattern<IR::Opcode::BitFieldUExtract>(
+                               MakeInstPattern<IR::Opcode::GetAttributeU32>(
+                                   MatchAttribute(IR::Attribute::PackedHullInvocationInfo),
+                                   MatchIgnore()),
+                               MatchU32(8), MatchU32(5))
+                               .DoMatch(IR::Value{&inst})) {
+                    IR::IREmitter ir(*block, it);
+                    IR::Value replacement;
+                    if (runtime_info.hs_info.IsPassthrough()) {
+                        // Deal with annoying pattern in BB where InvocationID use makes no sense
+                        // (in addr calculation for patchconst write)
+                        replacement = ir.Imm32(0);
+                    } else {
+                        replacement = ir.GetAttributeU32(IR::Attribute::InvocationId);
+                    }
+                    inst.ReplaceUsesWithAndRemove(replacement);
+                }
+            }
+        }
+    }
+}
+
+void TessellationPostprocess(IR::Program& program, RuntimeInfo& runtime_info) {
+    Shader::Info& info = program.info;
+    TessellationDataConstantBuffer tess_constants;
+    InitTessConstants(info.tess_consts_ptr_base, info.tess_consts_dword_offset, info, runtime_info,
+                      tess_constants);
+
+    for (IR::Block* block : program.blocks) {
+        for (IR::Inst& inst : block->Instructions()) {
+            if (inst.GetOpcode() == IR::Opcode::GetAttributeU32) {
+                switch (inst.Arg(0).Attribute()) {
+                case IR::Attribute::TcsLsStride:
+                    ASSERT(info.l_stage == LogicalStage::TessellationControl);
+                    inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_lsStride));
+                    break;
+                case IR::Attribute::TcsCpStride:
+                    inst.ReplaceUsesWithAndRemove(IR::Value(tess_constants.m_hsCpStride));
+                    break;
+                case IR::Attribute::TcsNumPatches:
+                case IR::Attribute::TcsOutputBase:
+                case IR::Attribute::TcsPatchConstSize:
+                case IR::Attribute::TcsPatchConstBase:
+                case IR::Attribute::TcsPatchOutputSize:
+                case IR::Attribute::TcsFirstEdgeTessFactorIndex:
+                default:
+                    break;
+                }
+            }
+        }
+    }
 
     for (IR::Block* block : program.blocks) {
         for (IR::Inst& inst : block->Instructions()) {
@@ -762,15 +801,17 @@ void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
             case IR::Opcode::LoadSharedU32:
             case IR::Opcode::LoadSharedU64:
             case IR::Opcode::LoadSharedU128:
-                DumpIR(program, "post_domain");
-                UNREACHABLE_MSG("Remaining DS instruction. Domain transform failed");
+            case IR::Opcode::WriteSharedU32:
+            case IR::Opcode::WriteSharedU64:
+            case IR::Opcode::WriteSharedU128:
+                UNREACHABLE_MSG("Remaining DS instruction. {} transform failed",
+                                info.l_stage == LogicalStage::TessellationControl ? "Hull"
+                                                                                  : "Domain");
             default:
                 break;
             }
         }
     }
-
-    pass.ReplaceAttributes(program);
 }
 
 } // namespace Shader::Optimization
