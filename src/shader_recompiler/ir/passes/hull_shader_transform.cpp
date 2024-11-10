@@ -339,10 +339,8 @@ private:
             IR::Inst* read_const_buffer = node.InstRecursive();
             IR::Value index = read_const_buffer->Arg(1);
 
-            // TODO dumb, could refactor folding to work outside of const prop pass and return
-            // folded value
             if (index.IsImmediate()) {
-                u32 offset = a.U32() + b.U32();
+                u32 offset = index.U32();
                 if (offset < static_cast<u32>(IR::Attribute::TcsFirstEdgeTessFactorIndex) -
                                  static_cast<u32>(IR::Attribute::TcsLsStride) + 1) {
                     IR::Attribute tess_constant_attr = static_cast<IR::Attribute>(
