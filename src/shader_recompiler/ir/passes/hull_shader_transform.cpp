@@ -502,7 +502,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                 const IR::Value data = inst.Arg(2);
                 inst.Invalidate();
                 if (num_dwords == 1) {
-                    // ir.SetPatch(IR::PatchFactor(factor_idx), GetValue(data));
+                    ir.SetPatch(IR::PatchFactor(factor_idx), GetValue(data));
                     break;
                 }
                 auto* inst = data.TryInstRecursive();
@@ -510,7 +510,7 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                                 inst->GetOpcode() == IR::Opcode::CompositeConstructU32x3 ||
                                 inst->GetOpcode() == IR::Opcode::CompositeConstructU32x4));
                 for (s32 i = 0; i < num_dwords; i++) {
-                    // ir.SetPatch(IR::PatchFactor(factor_idx + i), GetValue(inst->Arg(i)));
+                    ir.SetPatch(IR::PatchFactor(factor_idx + i), GetValue(inst->Arg(i)));
                 }
                 break;
             }
