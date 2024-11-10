@@ -594,12 +594,13 @@ void HullShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                        address_info.region == AttributeRegion::OutputCP);
                 switch (address_info.region) {
                 case AttributeRegion::InputCP: {
-                    u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                    u32 offset_dw =
+                        (address_info.attribute_byte_offset % runtime_info.hs_info.ls_stride) >> 2;
                     const u32 param = offset_dw >> 2;
                     const u32 comp = offset_dw & 3;
                     IR::Value control_point_index =
                         ir.IDiv(IR::U32{address_info.control_point_offset},
-                                ir.Imm32(runtime_info.hs_info.hs_cp_stride));
+                                ir.Imm32(runtime_info.hs_info.ls_stride));
                     IR::Value get_attrib =
                         ir.GetAttribute(IR::Attribute::Param0 + param, comp, control_point_index);
                     get_attrib = ir.BitCast<IR::U32>(IR::F32{get_attrib});
@@ -676,7 +677,9 @@ void DomainShaderTransform(IR::Program& program, RuntimeInfo& runtime_info) {
                        address_info.region == AttributeRegion::PatchConst);
                 switch (address_info.region) {
                 case AttributeRegion::OutputCP: {
-                    u32 offset_dw = address_info.attribute_byte_offset >> 2;
+                    u32 offset_dw = (address_info.attribute_byte_offset %
+                                     runtime_info.vs_info.hs_output_cp_stride) >>
+                                    2;
                     const u32 param = offset_dw >> 2;
                     const u32 comp = offset_dw & 3;
                     IR::Value control_point_index =
