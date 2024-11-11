@@ -1,27 +1,28 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <QApplication>
-#include <QWidget>
-#include <QVBoxLayout>
+include<QApplication>
+#include <QDialog>
 #include <QGroupBox>
 #include <QLabel>
-#include <QDialog>
+
 #include <QPropertyAnimation>
 #include <QTextBrowser>
+#include <QVBoxLayout>
+#include <QWidget>
 
-class ExpandableSection : public QWidget {
+    class ExpandableSection : public QWidget {
     Q_OBJECT
 public:
-    explicit ExpandableSection(const QString &title, const QString &content, QWidget *parent);
+    explicit ExpandableSection(const QString& title, const QString& content, QWidget* parent);
 
 signals:
     void expandedChanged(); // Signal to indicate layout size change
 
 private:
-    QPushButton *toggleButton;
-    QTextBrowser *contentBrowser; // Changed from QLabel to QTextBrowser
-    QPropertyAnimation *animation;
+    QPushButton* toggleButton;
+    QTextBrowser* contentBrowser; // Changed from QLabel to QTextBrowser
+    QPropertyAnimation* animation;
     int contentHeight;
     void updateContentHeight() {
         int contentHeight = contentBrowser->document()->size().height();
@@ -33,20 +34,21 @@ private:
 class HelpDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit HelpDialog(QWidget *parent = nullptr);
+    explicit HelpDialog(QWidget* parent = nullptr);
+
 private:
     QString quickstart() {
-        return 
-R"(The keyboard remapping backend, GUI and documentation have been written by kalaposfos
+        return
+            R"(The keyboard remapping backend, GUI and documentation have been written by kalaposfos
 
 In this section, you will find information about the project, its features and help on setting up your ideal setup.
 To view the config file's syntax, check out the Syntax tab, for keybind names, visit Normal Keybinds and Special Bindings, and if you are here to view emulator-wide keybinds, you can find it in the FAQ section.
 This project started out because I didn't like the original unchangeable keybinds, but rather than waiting for someone else to do it, I implemented this myself. From the default keybinds, you can clearly tell this was a project built for Bloodborne, but ovbiously you can make adjustments however you like.
 )";
-    } 
+    }
     QString faq() {
-        return 
-R"(Q: What are the emulator-wide keybinds?
+        return
+            R"(Q: What are the emulator-wide keybinds?
 A: -F12: Triggers Rdoc capture
 -F11: Toggles fullscreen
 -F10: Toggles FPS counter
@@ -64,8 +66,8 @@ A: Some keys are intentionally omitted, but if you read the bindings through, an
 )";
     }
     QString syntax() {
-        return 
-R"(This is the full list of currently supported mouse and keyboard inputs, and how to use them.
+        return
+            R"(This is the full list of currently supported mouse and keyboard inputs, and how to use them.
 Emulator-reserved keys: F1 through F12, Insert, PrintScreen, Delete, Home, End, PgUp, PgDown
 
 Syntax (aka how a line can look like):
@@ -91,8 +93,8 @@ Whitespace doesn't matter, <button>=<key>; is just as valid as <button> = <key>;
 )";
     }
     QString bindings() {
-        return 
-R"(The following names should be interpreted without the '' around them, and for inputs that have left and right versions, only the left one is shown, but the right can be inferred from that.
+        return
+            R"(The following names should be interpreted without the '' around them, and for inputs that have left and right versions, only the left one is shown, but the right can be inferred from that.
 Example: 'lshift', 'rshift'
 
 Keyboard:
@@ -123,8 +125,8 @@ Controller (this is not for controller remappings (yet), but rather the buttons 
 )";
     }
     QString special() {
-        return 
-R"(There are some extra bindings you can put into the config file, that don't correspond to a controller input, but rather something else.
+        return
+            R"(There are some extra bindings you can put into the config file, that don't correspond to a controller input, but rather something else.
 You can find these here, with detailed comments, examples and suggestions for most of them.
 
 'leftjoystick_halfmode' and 'rightjoystick_halfmode' = <key>;
