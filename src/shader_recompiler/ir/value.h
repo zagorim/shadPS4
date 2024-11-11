@@ -22,6 +22,7 @@
 #include "shader_recompiler/ir/reg.h"
 #include "shader_recompiler/ir/type.h"
 
+
 namespace Shader::IR {
 
 class Block;
