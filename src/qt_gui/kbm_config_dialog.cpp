@@ -4,54 +4,53 @@
 #include "kbm_config_dialog.h"
 #include "kbm_help_dialog.h"
 
-#include "src/sdl_window.h"
+#include <fstream>
+#include <iostream>
 #include "common/path_util.h"
 #include "game_info.h"
-#include <iostream>
-#include <fstream>
+#include "src/sdl_window.h"
 
-#include <QFile>
-#include <QComboBox>
-#include <QTextStream>
-#include <QMessageBox>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPushButton>
 #include <QCloseEvent>
+#include <QComboBox>
+#include <QFile>
+#include <QHBoxLayout>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTextStream>
+#include <QVBoxLayout>
 
-EditorDialog::EditorDialog(QWidget *parent)
-        : QDialog(parent) {
+EditorDialog::EditorDialog(QWidget* parent) : QDialog(parent) {
 
     setWindowTitle("Edit Config File");
     resize(600, 400);
 
     // Create the editor widget
     editor = new QPlainTextEdit(this);
-    editorFont.setPointSize(10);  // Set default text size
-    editor->setFont(editorFont);  // Apply font to the editor
+    editorFont.setPointSize(10); // Set default text size
+    editor->setFont(editorFont); // Apply font to the editor
 
     // Create the game selection combo box
     gameComboBox = new QComboBox(this);
-    gameComboBox->addItem("default");  // Add default option
-/*
-    gameComboBox = new QComboBox(this);
-    layout->addWidget(gameComboBox); // Add the combobox for selecting game configurations
-
-    // Populate the combo box with game configurations
-    QStringList gameConfigs = GameInfoClass::GetGameInfo(this);
-    gameComboBox->addItems(gameConfigs);
-    gameComboBox->setCurrentText("default.ini"); // Set the default selection
-*/
+    gameComboBox->addItem("default"); // Add default option
+                                      /*
+                                          gameComboBox = new QComboBox(this);
+                                          layout->addWidget(gameComboBox); // Add the combobox for selecting game configurations
+                                  
+                                          // Populate the combo box with game configurations
+                                          QStringList gameConfigs = GameInfoClass::GetGameInfo(this);
+                                          gameComboBox->addItems(gameConfigs);
+                                          gameComboBox->setCurrentText("default.ini"); // Set the default selection
+                                      */
     // Load all installed games
     loadInstalledGames();
 
     // Create Save, Cancel, and Help buttons
-    QPushButton *saveButton = new QPushButton("Save", this);
-    QPushButton *cancelButton = new QPushButton("Cancel", this);
-    QPushButton *helpButton = new QPushButton("Help", this);
+    QPushButton* saveButton = new QPushButton("Save", this);
+    QPushButton* cancelButton = new QPushButton("Cancel", this);
+    QPushButton* helpButton = new QPushButton("Help", this);
 
     // Layout for the game selection and buttons
-    QHBoxLayout *topLayout = new QHBoxLayout();
+    QHBoxLayout* topLayout = new QHBoxLayout();
     topLayout->addWidget(gameComboBox);
     topLayout->addStretch();
     topLayout->addWidget(saveButton);
@@ -59,7 +58,7 @@ EditorDialog::EditorDialog(QWidget *parent)
     topLayout->addWidget(helpButton);
 
     // Main layout with editor and buttons
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QVBoxLayout* layout = new QVBoxLayout(this);
     layout->addLayout(topLayout);
     layout->addWidget(editor);
 
@@ -70,17 +69,17 @@ EditorDialog::EditorDialog(QWidget *parent)
     connect(saveButton, &QPushButton::clicked, this, &EditorDialog::onSaveClicked);
     connect(cancelButton, &QPushButton::clicked, this, &EditorDialog::onCancelClicked);
     connect(helpButton, &QPushButton::clicked, this, &EditorDialog::onHelpClicked);
-    connect(gameComboBox, &QComboBox::currentTextChanged, this, &EditorDialog::onGameSelectionChanged);
+    connect(gameComboBox, &QComboBox::currentTextChanged, this,
+            &EditorDialog::onGameSelectionChanged);
 }
 
-
 void EditorDialog::loadFile(QString game) {
-    //QString game = file;
-    KBMConfig::parseInputConfig(game.toStdString());  // Ensure directory and file exist
+    // QString game = file;
+    KBMConfig::parseInputConfig(game.toStdString()); // Ensure directory and file exist
 
     const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "kbmConfig" /
                              (game != "default" ? game + ".ini" : "default.ini").toStdString();
-    
+
     QFile file(config_file);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&file);
@@ -92,13 +91,12 @@ void EditorDialog::loadFile(QString game) {
     }
 }
 
-
 void EditorDialog::saveFile(QString game) {
-    //QString game = file;
-    // to make sure the files and the directory do exist
+    // QString game = file;
+    //  to make sure the files and the directory do exist
     KBMConfig::parseInputConfig(game.toStdString());
-    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "kbmConfig" / 
-            (game != "default" ? game + ".ini" : "default.ini").toStdString();
+    const auto config_file = Common::FS::GetUserPath(Common::FS::PathType::UserDir) / "kbmConfig" /
+                             (game != "default" ? game + ".ini" : "default.ini").toStdString();
     QFile file(config_file);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
@@ -110,61 +108,53 @@ void EditorDialog::saveFile(QString game) {
 }
 
 // Override the close event to show the save confirmation dialog only if changes were made
-void EditorDialog::closeEvent(QCloseEvent *event) {
+void EditorDialog::closeEvent(QCloseEvent* event) {
     if (hasUnsavedChanges()) {
         QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "Save Changes",
-                                      "Do you want to save changes?",
+        reply = QMessageBox::question(this, "Save Changes", "Do you want to save changes?",
                                       QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
         if (reply == QMessageBox::Yes) {
             saveFile(gameComboBox->currentText());
-            event->accept();  // Close the dialog
+            event->accept(); // Close the dialog
         } else if (reply == QMessageBox::No) {
-            event->accept();  // Close the dialog without saving
+            event->accept(); // Close the dialog without saving
         } else {
-            event->ignore();  // Cancel the close event
+            event->ignore(); // Cancel the close event
         }
     } else {
-        event->accept();  // No changes, close the dialog without prompting
+        event->accept(); // No changes, close the dialog without prompting
     }
 }
-void EditorDialog::keyPressEvent(QKeyEvent *event) {
+void EditorDialog::keyPressEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_Escape) {
-        close();  // Trigger the close action, same as pressing the close button
+        close(); // Trigger the close action, same as pressing the close button
     } else {
-        QDialog::keyPressEvent(event);  // Call the base class implementation for other keys
+        QDialog::keyPressEvent(event); // Call the base class implementation for other keys
     }
 }
 
 void EditorDialog::onSaveClicked() {
     saveFile(gameComboBox->currentText());
-    reject();  // Close the dialog
+    reject(); // Close the dialog
 }
 
 void EditorDialog::onCancelClicked() {
-    reject();  // Close the dialog
+    reject(); // Close the dialog
 }
-bool isHelpOpen = false;
-HelpDialog *helpDialog;
+
 void EditorDialog::onHelpClicked() {
-    if(!isHelpOpen) {
-        helpDialog = new HelpDialog(this);
-        helpDialog->setWindowTitle("Help");
-        helpDialog->setAttribute(Qt::WA_DeleteOnClose);  // Clean up on close
-        // Get the position and size of the Config window
-        QRect configGeometry = this->geometry();
-        int helpX = configGeometry.x() + configGeometry.width() + 10; // 10 pixels offset
-        int helpY = configGeometry.y();
-        // Move the Help dialog to the right side of the Config window
-        helpDialog->move(helpX, helpY);
-        helpDialog->show();
-        isHelpOpen = true;
-    } else {
-        helpDialog->close();
-        isHelpOpen = false;
-    }
-    
+    HelpDialog* helpDialog = new HelpDialog(this);
+    helpDialog->setWindowTitle("Help");
+    helpDialog->setAttribute(Qt::WA_DeleteOnClose); // Clean up on close
+    // Get the position and size of the Config window
+    QRect configGeometry = this->geometry();
+    int helpX = configGeometry.x() + configGeometry.width() + 10; // 10 pixels offset
+    int helpY = configGeometry.y();
+
+    // Move the Help dialog to the right side of the Config window
+    helpDialog->move(helpX, helpY);
+    helpDialog->show();
 }
 
 bool EditorDialog::hasUnsavedChanges() {
@@ -180,14 +170,14 @@ void EditorDialog::loadInstalledGames() {
         QFileInfoList fileList = parentFolder.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
         for (const auto& fileInfo : fileList) {
             if (fileInfo.isDir() && !fileInfo.filePath().endsWith("-UPDATE")) {
-                gameComboBox->addItem(fileInfo.fileName());  // Add game name to combo box
+                gameComboBox->addItem(fileInfo.fileName()); // Add game name to combo box
             }
         }
     }
 }
 QString previousGame = "default";
-void EditorDialog::onGameSelectionChanged(const QString &game) {
+void EditorDialog::onGameSelectionChanged(const QString& game) {
     saveFile(previousGame);
-    loadFile(gameComboBox->currentText());  // Reload file based on the selected game
+    loadFile(gameComboBox->currentText()); // Reload file based on the selected game
     previousGame = gameComboBox->currentText();
 }
