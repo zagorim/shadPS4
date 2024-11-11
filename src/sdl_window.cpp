@@ -32,6 +32,10 @@
 Uint32 getMouseWheelEvent(const SDL_Event* event) {
     if (event->type != SDL_EVENT_MOUSE_WHEEL)
         return 0;
+<<<<<<< HEAD
+=======
+    // std::cout << "We got a wheel event! ";
+>>>>>>> qt-config-editor
     if (event->wheel.y > 0) {
         return SDL_MOUSE_WHEEL_UP;
     } else if (event->wheel.y < 0) {
@@ -138,12 +142,19 @@ float mouse_deadzone_offset = 0.5, mouse_speed = 1, mouse_speed_offset = 0.125;
 Uint32 mouse_polling_id = 0;
 bool mouse_enabled = false, leftjoystick_halfmode = false, rightjoystick_halfmode = false;
 
+<<<<<<< HEAD
 // A vector to store delayed actions by event ID
 std::vector<DelayedAction> delayedActions;
 
 KeyBinding::KeyBinding(const SDL_Event* event) {
     modifier = getCustomModState();
     key = 0;
+=======
+KeyBinding::KeyBinding(const SDL_Event* event) {
+    modifier = getCustomModState();
+    key = 0;
+    // std::cout << "Someone called the new binding ctor!\n";
+>>>>>>> qt-config-editor
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) {
         key = event->key.key;
     } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
@@ -365,6 +376,7 @@ typename std::map<KeyBinding, T>::const_iterator FindKeyAllowingOnlyNoModifiers(
     return map.end(); // Return end if no match is found
 }
 
+<<<<<<< HEAD
 void WindowSDL::handleDelayedActions() {
     // Uncomment at your own terminal's risk
     // std::cout << "I fear the amount of spam this line will generate\n";
@@ -393,12 +405,36 @@ void WindowSDL::handleDelayedActions() {
             ++it;
         }
     }
+=======
+Uint32 WindowSDL::keyRepeatCallback(void* param, Uint32 id, Uint32 interval) {
+    auto* data = (std::pair<WindowSDL*, SDL_Event*>*)param;
+    KeyBinding binding(data->second);
+    if (data->second->type == SDL_EVENT_MOUSE_WHEEL) {
+        // send an off signal a frame later
+        auto button_it = button_map.find(binding);
+        auto axis_it = axis_map.find(binding);
+        if (button_it != button_map.end()) {
+            data->first->updateButton(binding, button_it->second, false);
+        } else if (axis_it != axis_map.end()) {
+            data->first->controller->Axis(0, axis_it->second.axis, Input::GetAxis(-0x80, 0x80, 0));
+        }
+        return 0;
+    }
+    data->first->updateModKeyedInputsManually(binding);
+    delete data->second;
+    delete data;
+    return 0; // Return 0 to stop the timer after firing once
+>>>>>>> qt-config-editor
 }
 
 Uint32 WindowSDL::mousePolling(void* param, Uint32 id, Uint32 interval) {
     auto* data = (WindowSDL*)param;
     data->updateMouse();
+<<<<<<< HEAD
     return 33;
+=======
+    return 33; // Return 0 to stop the timer after firing once
+>>>>>>> qt-config-editor
 }
 
 void WindowSDL::updateMouse() {
@@ -425,6 +461,10 @@ void WindowSDL::updateMouse() {
     float output_speed =
         SDL_clamp((sqrt(d_x * d_x + d_y * d_y) + mouse_speed_offset * 128) * mouse_speed,
                   mouse_deadzone_offset * 128, 128.0);
+<<<<<<< HEAD
+=======
+    // std::cout << "speed: " << mouse_speed << "\n";
+>>>>>>> qt-config-editor
 
     float angle = atan2(d_y, d_x);
     float a_x = cos(angle) * output_speed, a_y = sin(angle) * output_speed;
@@ -501,6 +541,10 @@ WindowSDL::~WindowSDL() = default;
 
 void WindowSDL::waitEvent() {
     // Called on main thread
+<<<<<<< HEAD
+=======
+    SDL_Event event{};
+>>>>>>> qt-config-editor
 
     handleDelayedActions();
 
@@ -514,6 +558,10 @@ void WindowSDL::waitEvent() {
     if (ImGui::Core::ProcessEvent(&event)) {
         return;
     }
+    SDL_Event* event_copy = new SDL_Event();
+    *event_copy = event;
+    std::pair<WindowSDL*, SDL_Event*>* payload_to_timer =
+        new std::pair<WindowSDL*, SDL_Event*>(this, event_copy);
 
     // Set execution time to 33 ms later than 'now'
     DelayedAction d = {SDL_GetTicks() + 33, event};
@@ -536,7 +584,11 @@ void WindowSDL::waitEvent() {
         // as seen in pr #633
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_KEY_UP:
+<<<<<<< HEAD
         delayedActions.push_back(d);
+=======
+        SDL_AddTimer(33, keyRepeatCallback, (void*)payload_to_timer);
+>>>>>>> qt-config-editor
         onKeyboardMouseEvent(&event);
         break;
     case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -576,6 +628,11 @@ void WindowSDL::updateButton(KeyBinding& binding, u32 button, bool is_pressed) {
     case OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_R2:
         axis = (button == OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_R2) ? Input::Axis::TriggerRight
                                                                          : Input::Axis::TriggerLeft;
+<<<<<<< HEAD
+=======
+        // int axis_value = is_pressed ? 255 : 0;
+        // int ax = Input::GetAxis(0, 0x80, is_pressed ? 255 : 0);
+>>>>>>> qt-config-editor
         controller->Axis(0, axis, Input::GetAxis(0, 0x80, is_pressed ? 255 : 0));
         break;
     case OrbisPadButtonDataOffset::ORBIS_PAD_BUTTON_TOUCH_PAD:
