@@ -4,19 +4,21 @@
 #include "kbm_help_dialog.h"
 
 #include <QApplication>
-#include <QLabel>
-#include <QWidget>
+#include <QDialog>
 #include <QGroupBox>
-#include <QVBoxLayout>
+
 #include <QHBoxLayout>
+#include <QLabel>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QDialog>
-#include <QPropertyAnimation>
+#include <QVBoxLayout>
+#include <QWidget>
 
-ExpandableSection::ExpandableSection(const QString &title, const QString &content, QWidget *parent = nullptr)
+ExpandableSection::ExpandableSection(const QString& title, const QString& content,
+                                     QWidget* parent = nullptr)
     : QWidget(parent) {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QVBoxLayout* layout = new QVBoxLayout(this);
 
     // Button to toggle visibility of content
     toggleButton = new QPushButton(title);
@@ -43,33 +45,34 @@ ExpandableSection::ExpandableSection(const QString &title, const QString &conten
     connect(toggleButton, &QPushButton::clicked, [this]() {
         contentBrowser->setVisible(!contentBrowser->isVisible());
         if (contentBrowser->isVisible()) {
-            updateContentHeight();  // Update height when expanding
+            updateContentHeight(); // Update height when expanding
         }
         emit expandedChanged(); // Notify for layout adjustments
     });
 
     // Connect to update height if content changes
-    connect(contentBrowser->document(), &QTextDocument::contentsChanged, this, &ExpandableSection::updateContentHeight);
+    connect(contentBrowser->document(), &QTextDocument::contentsChanged, this,
+            &ExpandableSection::updateContentHeight);
 
     // Minimal layout settings for spacing
     layout->setSpacing(2);
     layout->setContentsMargins(0, 0, 0, 0);
 }
 
-HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
+HelpDialog::HelpDialog(QWidget* parent) : QDialog(parent) {
     // Main layout for the help dialog
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
     // Container widget for the scroll area
-    QWidget *containerWidget = new QWidget;
-    QVBoxLayout *containerLayout = new QVBoxLayout(containerWidget);
+    QWidget* containerWidget = new QWidget;
+    QVBoxLayout* containerLayout = new QVBoxLayout(containerWidget);
 
     // Add expandable sections to container layout
-    auto *quickstartSection = new ExpandableSection("Quickstart", quickstart());
-    auto *faqSection = new ExpandableSection("FAQ", faq());
-    auto *syntaxSection = new ExpandableSection("Syntax", syntax());
-    auto *specialSection = new ExpandableSection("Special Bindings", special());
-    auto *bindingsSection = new ExpandableSection("Keybindings", bindings());
+    auto* quickstartSection = new ExpandableSection("Quickstart", quickstart());
+    auto* faqSection = new ExpandableSection("FAQ", faq());
+    auto* syntaxSection = new ExpandableSection("Syntax", syntax());
+    auto* specialSection = new ExpandableSection("Special Bindings", special());
+    auto* bindingsSection = new ExpandableSection("Keybindings", bindings());
 
     containerLayout->addWidget(quickstartSection);
     containerLayout->addWidget(faqSection);
@@ -79,7 +82,7 @@ HelpDialog::HelpDialog(QWidget *parent) : QDialog(parent) {
     containerLayout->addStretch(1);
 
     // Scroll area wrapping the container
-    QScrollArea *scrollArea = new QScrollArea;
+    QScrollArea* scrollArea = new QScrollArea;
     scrollArea->setWidgetResizable(true);
     scrollArea->setWidget(containerWidget);
 
