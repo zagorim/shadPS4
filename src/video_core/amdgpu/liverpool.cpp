@@ -196,6 +196,8 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
 
         switch (type) {
         case 0:
+            dcb = NextPacket(dcb, header->type0.NumWords() + 1);
+            continue;
         case 1:
             UNREACHABLE_MSG("Unsupported PM4 type {}", type);
             break;
@@ -550,7 +552,7 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                                            sizeof(u32), false);
                 } else if (dma_data->src_sel == DmaDataSrc::Gds &&
                            dma_data->dst_sel == DmaDataDst::Memory) {
-                    //LOG_WARNING(Render_Vulkan, "GDS memory read");
+                    LOG_WARNING(Render_Vulkan, "GDS memory read");
                 } else if (dma_data->src_sel == DmaDataSrc::Memory &&
                            dma_data->dst_sel == DmaDataDst::Memory) {
                     rasterizer->InlineData(dma_data->DstAddress<VAddr>(),
